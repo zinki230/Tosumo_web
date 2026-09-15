@@ -1,0 +1,55 @@
+# ── Dependencies ────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Build outputs ────────────────────────────
+dist/
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# ── Flutter generated ────────────────────────
+*.g.dart
+*.freezed.dart
+# (keep source .dart files but ignore generated)
+
+# ── Environment ─────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Logs ────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Editor ──────────────────────────────────
+.DS_Store
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+Thumbs.db
+
+# ── iOS / Xcode ──────────────────────────────
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner/GeneratedPluginRegistrant.*
+
+# ── Android ──────────────────────────────────
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+
+# ── Prisma ──────────────────────────────────
+backend/src/prisma/generated/
+
+# ── Misc ────────────────────────────────────
+coverage/
+.nyc_output/
