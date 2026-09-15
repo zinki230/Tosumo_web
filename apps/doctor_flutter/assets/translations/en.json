@@ -1,0 +1,140 @@
+{
+  "app": {
+    "name": "TOSUMO",
+    "tagline": "Healthcare Professional Platform",
+    "version": "v1.0.0"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "patients": "Patients",
+    "consultations": "Consultations",
+    "appointments": "Appointments",
+    "prescriptions": "Prescriptions",
+    "chat": "Chat",
+    "emergency": "Emergency",
+    "scan": "Scan",
+    "profile": "Profile",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email address",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign Up",
+    "loginError": "Incorrect email or password",
+    "sessionExpired": "Session expired. Please login again."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Activity overview",
+    "todayAppointments": "Today's appointments",
+    "pendingConsultations": "Pending consultations",
+    "activePatients": "Active patients",
+    "recentActivity": "Recent activity"
+  },
+  "patients": {
+    "title": "Patients",
+    "subtitle": "Patient management",
+    "search": "Search patient",
+    "noPatients": "No patients",
+    "detail": "Patient file",
+    "medicalHistory": "Medical history",
+    "allergies": "Allergies",
+    "medications": "Medications",
+    "documents": "Documents"
+  },
+  "consultations": {
+    "title": "Consultations",
+    "subtitle": "Consultation history",
+    "newConsultation": "New consultation",
+    "noConsultations": "No consultations",
+    "diagnosis": "Diagnosis",
+    "notes": "Notes",
+    "prescription": "Prescription"
+  },
+  "appointments": {
+    "title": "Appointments",
+    "subtitle": "Appointment management",
+    "today": "Today",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "noAppointments": "No appointments",
+    "schedule": "Schedule",
+    "cancel": "Cancel"
+  },
+  "prescriptions": {
+    "title": "Prescriptions",
+    "subtitle": "Prescription management",
+    "newPrescription": "New prescription",
+    "noPrescriptions": "No prescriptions",
+    "medication": "Medication",
+    "dosage": "Dosage",
+    "duration": "Duration",
+    "renew": "Renew"
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Secure communications",
+    "noConversations": "No conversations",
+    "newMessage": "New message",
+    "search": "Search",
+    "typeMessage": "Type your message..."
+  },
+  "emergency": {
+    "title": "Emergency",
+    "subtitle": "Emergency cases",
+    "noEmergencies": "No active emergencies",
+    "active": "Active emergencies",
+    "respond": "Respond",
+    "critical": "Critical"
+  },
+  "scan": {
+    "title": "Scan",
+    "subtitle": "Scan patient QR code",
+    "scanning": "Scanning...",
+    "scanResult": "Scan result",
+    "noResult": "No result"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Professional information",
+    "edit": "Edit profile",
+    "specialty": "Specialty",
+    "license": "License number",
+    "hospital": "Hospital",
+    "contact": "Contact information"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Application configuration",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "security": "Security",
+    "about": "About",
+    "version": "Version"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "noData": "No data",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "online": "Online",
+    "offline": "Offline"
+  }
+}

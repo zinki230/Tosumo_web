@@ -1,0 +1,140 @@
+{
+  "app": {
+    "name": "TOSUMO",
+    "tagline": "Plateforme des professionnels de santé",
+    "version": "v1.0.0"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "patients": "Patients",
+    "consultations": "Consultations",
+    "appointments": "Rendez-vous",
+    "prescriptions": "Prescriptions",
+    "chat": "Messagerie",
+    "emergency": "Urgences",
+    "scan": "Scanner",
+    "profile": "Profil",
+    "settings": "Paramètres"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Adresse email",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "noAccount": "Pas encore de compte ?",
+    "signUp": "S'inscrire",
+    "loginError": "Email ou mot de passe incorrect",
+    "sessionExpired": "Session expirée. Veuillez vous reconnecter."
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "subtitle": "Vue d'ensemble de votre activité",
+    "todayAppointments": "Rendez-vous aujourd'hui",
+    "pendingConsultations": "Consultations en attente",
+    "activePatients": "Patients actifs",
+    "recentActivity": "Activité récente"
+  },
+  "patients": {
+    "title": "Patients",
+    "subtitle": "Gestion des patients",
+    "search": "Rechercher un patient",
+    "noPatients": "Aucun patient",
+    "detail": "Dossier patient",
+    "medicalHistory": "Historique médical",
+    "allergies": "Allergies",
+    "medications": "Médicaments",
+    "documents": "Documents"
+  },
+  "consultations": {
+    "title": "Consultations",
+    "subtitle": "Historique des consultations",
+    "newConsultation": "Nouvelle consultation",
+    "noConsultations": "Aucune consultation",
+    "diagnosis": "Diagnostic",
+    "notes": "Notes",
+    "prescription": "Prescription"
+  },
+  "appointments": {
+    "title": "Rendez-vous",
+    "subtitle": "Gestion des rendez-vous",
+    "today": "Aujourd'hui",
+    "upcoming": "À venir",
+    "past": "Passés",
+    "noAppointments": "Aucun rendez-vous",
+    "schedule": "Planifier",
+    "cancel": "Annuler"
+  },
+  "prescriptions": {
+    "title": "Prescriptions",
+    "subtitle": "Gestion des ordonnances",
+    "newPrescription": "Nouvelle ordonnance",
+    "noPrescriptions": "Aucune ordonnance",
+    "medication": "Médicament",
+    "dosage": "Posologie",
+    "duration": "Durée",
+    "renew": "Renouveler"
+  },
+  "chat": {
+    "title": "Messagerie",
+    "subtitle": "Communications sécurisées",
+    "noConversations": "Aucune conversation",
+    "newMessage": "Nouveau message",
+    "search": "Rechercher",
+    "typeMessage": "Écrivez votre message..."
+  },
+  "emergency": {
+    "title": "Urgences",
+    "subtitle": "Cas urgents",
+    "noEmergencies": "Aucune urgence en cours",
+    "active": "Urgences actives",
+    "respond": "Répondre",
+    "critical": "Critique"
+  },
+  "scan": {
+    "title": "Scanner",
+    "subtitle": "Scannez le code QR du patient",
+    "scanning": "Scan en cours...",
+    "scanResult": "Résultat du scan",
+    "noResult": "Aucun résultat"
+  },
+  "profile": {
+    "title": "Profil",
+    "subtitle": "Informations professionnelles",
+    "edit": "Modifier le profil",
+    "specialty": "Spécialité",
+    "license": "Numéro de licence",
+    "hospital": "Établissement",
+    "contact": "Informations de contact"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Configuration de l'application",
+    "language": "Langue",
+    "theme": "Thème",
+    "notifications": "Notifications",
+    "security": "Sécurité",
+    "about": "À propos",
+    "version": "Version"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "search": "Rechercher",
+    "noData": "Aucune donnée",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé",
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "online": "En ligne",
+    "offline": "Hors ligne"
+  }
+}
