@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "caches": {
+    "npm-install": {
+      "directory": "/root/.npm",
+      "type": "shared"
+    }
+  },
+  "steps": {
+    "install": {
+      "caches": ["npm-install"],
+      "inputs": ["...", { "local": true, "include": ["backend"] }],
+      "commands": ["cd backend && npm install", "mkdir -p /app/node_modules"]
+    },
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": ["cd backend && npm run build"]
+    }
+  },
+  "deploy": {
+    "startCommand": "node backend/dist/server.js",
+    "inputs": [
+      "...",
+      { "step": "build", "include": ["backend/dist"] }
+    ]
+  }
+}
