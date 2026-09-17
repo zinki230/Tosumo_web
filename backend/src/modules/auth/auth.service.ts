@@ -59,13 +59,15 @@ export class AuthService {
       if (input.role === 'doctor') {
         const firstName = input.firstName || '';
         const lastName = input.lastName || '';
+        // Generate a temporary unique license number until doctor completes profile
+        const tempLicenseNumber = `TEMP-${user.id.substring(0, 8)}-${Date.now()}`;
         await prisma.doctor.create({
           data: {
             userId: user.id,
             firstName,
             lastName,
             specialty: 'General Practice', // Default specialty
-            licenseNumber: '', // To be completed later
+            licenseNumber: tempLicenseNumber, // Temporary unique license number
           },
         });
       }
@@ -79,6 +81,11 @@ export class AuthService {
           : String(error?.meta?.target ?? '');
         if (target.includes('phone')) {
           throw phoneConflict();
+        }
+        if (target.includes('licenseNumber')) {
+          // This should not happen with timestamp-based temp license numbers,
+          // but if it does, let the error bubble up for investigation
+          throw new ConflictError('License number conflict - please try again');
         }
         const conflict = new ConflictError('Email already registered');
         conflict.code = 'EMAIL_ALREADY_REGISTERED';
