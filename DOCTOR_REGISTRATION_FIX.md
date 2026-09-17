@@ -3,10 +3,28 @@
 ## Problem
 When registering a doctor account through the Flutter app, users encountered a "server error" even though the registration appeared successful.
 
-## Root Cause
+## Root Causes
+
+### Issue 1: Missing Doctor Profile Creation
 The Flutter app was calling `/api/v1/auth/register` with `role: 'doctor'`, which created a User record but did NOT automatically create the corresponding Doctor profile in the database. 
 
 When the user tried to login and access their profile, the app would fail because the Doctor profile didn't exist.
+
+### Issue 2: Unique Constraint on License Number
+After fixing Issue 1 by auto-creating Doctor profiles, a second error appeared: the database has a unique constraint on `licenseNumber`, and we were setting it to an empty string `''` for all new doctors. This caused "Unique constraint failed on licenseNumber" errors when multiple doctors tried to register.
+
+## Solutions
+
+### Solution 1: Auto-create Doctor Profile
+Modified the `register()` method in `backend/src/modules/auth/auth.service.ts` to automatically create a basic Doctor profile when the role is 'doctor'.
+
+### Solution 2: Generate Unique Temporary License Number
+Instead of using an empty string for `licenseNumber`, we now generate a unique temporary license number using the format: `TEMP-{userId}-{timestamp}`.
+
+This ensures:
+- Every doctor has a unique license number
+- The number is clearly marked as temporary
+- Doctors can update it with their real license number when completing their profile
 
 ## Solution
 Modified the `register()` method in `backend/src/modules/auth/auth.service.ts` to automatically create a basic Doctor profile when the role is 'doctor'.
@@ -20,15 +38,31 @@ Modified the `register()` method in `backend/src/modules/auth/auth.service.ts` t
 if (input.role === 'doctor') {
   const firstName = input.firstName || '';
   const lastName = input.lastName || '';
+  // Generate a temporary unique license number until doctor completes profile
+  const tempLicenseNumber = `TEMP-${user.id.substring(0, 8)}-${Date.now()}`;
   await prisma.doctor.create({
     data: {
       userId: user.id,
       firstName,
       lastName,
       specialty: 'General Practice', // Default specialty
-      licenseNumber: '', // To be completed later
+      licenseNumber: tempLicenseNumber, // Temporary unique license number
     },
   });
+}
+
+// In the error handler
+if (error?.code === 'P2002') {
+  const target = Array.isArray(error?.meta?.target)
+    ? error.meta.target.join(',')
+    : String(error?.meta?.target ?? '');
+  if (target.includes('phone')) {
+    throw phoneConflict();
+  }
+  if (target.includes('licenseNumber')) {
+    throw new ConflictError('License number conflict - please try again');
+  }
+  // ... handle email conflicts
 }
 ```
 
@@ -80,9 +114,9 @@ Expected response:
   "message": "Registration successful",
   "data": {
     "user": {
-      "id": "...",
-      "email": "...",
-      "phone": "+237655112233",
+      "id": "6aac7cadde95109a36395737",
+      "email": "phone-237698765432@tosumo.cm",
+      "phone": "+237698765432",
       "role": "doctor",
       ...
     },
@@ -114,17 +148,19 @@ Expected response:
 {
   "success": true,
   "data": {
-    "id": "...",
-    "userId": "...",
-    "firstName": "Test",
-    "lastName": "Doctor",
+    "id": "6aac7cadde95109a36395738",
+    "userId": "6aac7cadde95109a36395737",
+    "firstName": "Sophie",
+    "lastName": "Durand",
     "specialty": "General Practice",
-    "licenseNumber": "",
-    "phone": "+237655112233",
+    "licenseNumber": "TEMP-6aac7cad-1789689006288",
+    "phone": "+237698765432",
     ...
   }
 }
 ```
+
+Note that the `licenseNumber` is now a unique temporary value that starts with "TEMP-".
 
 ## Flutter App Integration
 
@@ -224,10 +260,15 @@ This endpoint creates:
 
 **Branch:** `feature/hospital-web-sync-fixes`
 
-**Commit:** `fix(backend): Auto-create Doctor profile on doctor registration`
+**Commits:**
+1. `1f0f06d` - fix(backend): Auto-create Doctor profile on doctor registration
+2. `6ed03e3` - fix(backend): Generate unique temporary license number for doctor registration
 
 **Changes:**
-- `backend/src/modules/auth/auth.service.ts` - Modified register() method
+- `backend/src/modules/auth/auth.service.ts` - Modified register() method to:
+  - Auto-create Doctor profile when role is 'doctor'
+  - Generate unique temporary license number
+  - Handle license number conflicts
 
 **Pushed to GitHub:** ✅ Yes
 
