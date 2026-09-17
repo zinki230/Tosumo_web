@@ -54,6 +54,21 @@ export class AuthService {
         passwordHash,
         role: input.role,
       });
+
+      // If doctor role, create a basic Doctor profile
+      if (input.role === 'doctor') {
+        const firstName = input.firstName || '';
+        const lastName = input.lastName || '';
+        await prisma.doctor.create({
+          data: {
+            userId: user.id,
+            firstName,
+            lastName,
+            specialty: 'General Practice', // Default specialty
+            licenseNumber: '', // To be completed later
+          },
+        });
+      }
     } catch (error: any) {
       // Race guard: two simultaneous registrations can both pass the
       // findByPhone check above. The database unique index (User.phone) is
