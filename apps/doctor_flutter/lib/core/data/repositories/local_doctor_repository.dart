@@ -885,6 +885,16 @@ class LocalDoctorRepository implements
   }
 
   @override
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String password,
+  }) async {
+    throw UnimplementedError('Local registration is not supported');
+  }
+
+  @override
   Future<void> otpLogin(String phone, String code) async {
     throw UnimplementedError('Local login is not supported');
   }

@@ -648,6 +648,21 @@ class RepositoryCoordinator implements
   }
 
   @override
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String password,
+  }) {
+    return _remote.register(
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+      password: password,
+    );
+  }
+
+  @override
   Future<void> otpLogin(String phone, String code) {
     return _remote.otpLogin(phone, code);
   }
