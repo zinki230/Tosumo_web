@@ -92,30 +92,25 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
       final fullName =
           '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
       
-      // Create a doctor profile
+      // Create a doctor profile with available fields
       final doctor = Doctor(
         id: '', // Will be set by backend
-        userId: ref.read(authProvider).userId ?? '',
         name: fullName,
         specialty: _specialtyController.text.trim(),
         licenseNumber: _licenseNumberController.text.trim(),
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim(),
+        hospitalId: '', // Will be set by backend
+        hospitalName: _hospitalController.text.trim(),
         photoUrl: '',
         credentials: _selectedCredentials,
-        bio: _bioController.text.trim(),
         languages: _selectedLanguages,
         rating: 0.0,
         reviewCount: 0,
         isAvailable: true,
-        isVerified: false,
-        consultationFee: double.tryParse(_consultationFeeController.text) ?? 0,
-        experienceYears:
-            int.tryParse(_experienceYearsController.text) ?? 0,
-        city: _cityController.text.trim(),
-        region: '',
-        hospitalName: _hospitalController.text.trim(),
+        expertise: [],
         workingHours: [],
+        createdAt: DateTime.now(),
       );
 
       final result =
@@ -164,13 +159,13 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                   child: Row(
                     children: [
                       const Icon(LucideIcons.alertCircle,
-                          color: AppColors.error, size: 20),
+                          color: AppColors.destructive, size: 20),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _error!,
                           style: const TextStyle(
-                            color: AppColors.error,
+                            color: AppColors.destructive,
                             fontSize: 13,
                           ),
                         ),
