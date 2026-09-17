@@ -827,6 +827,23 @@ class RemoteDoctorRepository implements
   }
 
   @override
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String password,
+  }) async {
+    await _client.dio.post(DoctorApiEndpoints.register, data: {
+      'firstName': firstName,
+      'lastName': lastName,
+      'phone': phone,
+      'password': password,
+      'role': 'doctor',
+    });
+    // Don't persist auth after register, let user login manually
+  }
+
+  @override
   Future<void> otpLogin(String phone, String code) async {
     final response = await _client.dio.post(DoctorApiEndpoints.otpLogin, data: {
       'phone': phone,

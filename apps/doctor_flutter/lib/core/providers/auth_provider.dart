@@ -120,6 +120,28 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String password,
+  }) async {
+    state = state.copyWith(status: AuthStatus.unknown);
+    try {
+      await ref.read(authRepositoryProvider).register(
+        firstName: firstName,
+        lastName: lastName,
+        phone: phone,
+        password: password,
+      );
+      // After registration, don't auto-login, let user login manually
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    } catch (e) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      rethrow;
+    }
+  }
+
   Future<void> otpLogin(String phone, String code) async {
     state = state.copyWith(status: AuthStatus.unknown);
     try {

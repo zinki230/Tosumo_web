@@ -19,7 +19,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
@@ -28,7 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -42,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref
           .read(authProvider.notifier)
-          .login(_emailController.text.trim(), _passwordController.text)
+          .login(_phoneController.text.trim(), _passwordController.text)
           .timeout(const Duration(seconds: 15), onTimeout: () => throw Exception('Délai d\'attente dépassé. Vérifiez votre connexion.'));
       if (mounted) context.go('/dashboard');
     } catch (e) {
@@ -95,15 +95,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
                       TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(
-                          labelText: 'Email ou téléphone',
-                          hintText: 'email@exemple.com',
-                          prefixIcon: Icon(LucideIcons.mail, size: 20),
+                          labelText: 'Numéro de téléphone',
+                          hintText: '+237 6XX XXX XXX',
+                          prefixIcon: Icon(LucideIcons.phone, size: 20),
                         ),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Identifiant requis';
+                          if (v == null || v.trim().isEmpty) return 'Téléphone requis';
                           return null;
                         },
                       ),
@@ -160,18 +160,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: _login,
                       ),
                       const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => context.push('/forgot-password'),
-                          child: const Text(
-                            'Mot de passe oublié?',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () => context.push('/register'),
+                            child: const Text(
+                              'Créer un compte',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
+                          TextButton(
+                            onPressed: () => context.push('/forgot-password'),
+                            child: const Text(
+                              'Mot de passe oublié?',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
