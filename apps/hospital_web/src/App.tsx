@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import DoctorRegister from './pages/DoctorRegister'
 import Dashboard from './pages/Dashboard'
 import TrackingPage from './pages/TrackingPage'
 import DoctorsList from './pages/DoctorsList'
@@ -19,6 +20,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register/doctor" element={<DoctorRegister />} />
         <Route
           path="/"
           element={

@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { AuthenticatedRequest } from '@shared/types';
-import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema } from './auth.validation';
+import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema } from './auth.validation';
 
 const authService = new AuthService();
 
@@ -119,6 +119,20 @@ export class AuthController {
       const { phone, code, newPassword } = resetPasswordSchema.parse(req.body);
       const result = await authService.resetPassword(phone, code, newPassword);
       res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async registerDoctor(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const input = registerDoctorSchema.parse(req.body);
+      const result = await authService.registerDoctor(input);
+      res.status(201).json({ 
+        success: true, 
+        message: 'Doctor registration successful', 
+        data: result 
+      });
     } catch (error) {
       next(error);
     }

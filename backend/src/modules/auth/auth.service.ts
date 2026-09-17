@@ -4,9 +4,10 @@ import { generateTokenPair, verifyRefreshToken } from '@shared/utils/jwt';
 import { JwtPayload } from '@shared/types';
 import { BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
 import { sendVerificationEmail } from '@shared/services/email';
-import { RegisterInput, LoginInput } from './auth.validation';
+import { RegisterInput, LoginInput, RegisterDoctorInput } from './auth.validation';
 import { OtpProvider, createOtpProvider } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
+import prisma from '@shared/database/prisma';
 
 function placeholderEmailForPhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
@@ -300,5 +301,105 @@ export class AuthService {
     const newHash = await hashPassword(newPassword);
     await this.repository.updatePassword(user.id, newHash);
     return { message: 'Password reset successfully', mode: this.otpProvider.mode };
+  }
+
+  /**
+   * Register a new doctor with their professional profile and institution affiliation.
+   * Creates both User (role=doctor) and DoctorProfile records in a transaction.
+   */
+  async registerDoctor(input: RegisterDoctorInput) {
+    const phone = normalizeCameroonPhone(input.phone);
+    if (!phone) {
+      throw new BadRequestError('Invalid Cameroon phone number');
+    }
+    const email = input.email.trim().toLowerCase();
+
+    // Check for existing user
+    const existingPhone = await this.repository.findByPhone(phone);
+    if (existingPhone) {
+      throw phoneConflict();
+    }
+
+    const existingEmail = await this.repository.findByEmail(email);
+    if (existingEmail) {
+      const err = new ConflictError('Email already registered');
+      err.code = 'EMAIL_ALREADY_REGISTERED';
+      throw err;
+    }
+
+    // Verify institution exists
+    const institution = await prisma.institution.findUnique({
+      where: { id: input.institutionId },
+    });
+    if (!institution) {
+      throw new BadRequestError('Invalid institution ID');
+    }
+
+    const passwordHash = await hashPassword(input.password);
+
+    // Create user and doctor profile in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create User
+      const user = await tx.user.create({
+        data: {
+          email,
+          phone,
+          passwordHash,
+          role: 'doctor',
+        },
+      });
+
+      // 2. Create Doctor profile
+      const doctor = await tx.doctor.create({
+        data: {
+          userId: user.id,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          specialty: input.specialty,
+          licenseNumber: input.licenseNumber,
+          isVerified: false,
+          isAvailable: true,
+        },
+      });
+
+      // 3. Link to institution
+      await tx.doctorInstitution.create({
+        data: {
+          doctorId: doctor.id,
+          institutionId: input.institutionId,
+        },
+      });
+
+      return { user, doctor };
+    });
+
+    const payload: JwtPayload = { 
+      userId: result.user.id, 
+      email: result.user.email, 
+      role: 'doctor' as JwtPayload['role'] 
+    };
+    const tokens = generateTokenPair(payload);
+
+    await this.repository.updateRefreshToken(result.user.id, tokens.refreshToken);
+
+    if (process.env.NODE_ENV !== 'test') {
+      sendVerificationEmail(email, tokens.accessToken).catch(console.error);
+    }
+
+    return {
+      user: {
+        id: result.user.id,
+        doctorId: result.doctor.id,
+        email: result.user.email,
+        phone: result.user.phone,
+        role: result.user.role,
+        firstName: result.doctor.firstName,
+        lastName: result.doctor.lastName,
+        specialty: result.doctor.specialty,
+        isEmailVerified: result.user.isEmailVerified,
+        isPhoneVerified: result.user.isPhoneVerified,
+      },
+      tokens,
+    };
   }
 }

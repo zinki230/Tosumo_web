@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Activity, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { authApi } from '../services/api'
 
@@ -108,6 +108,18 @@ export default function Login() {
             <br />
             Mot de passe : <span className="font-mono text-slate-500">Demo@1234</span>
           </p>
+
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <p className="text-center text-sm text-slate-600 mb-3">
+              Vous êtes médecin ?
+            </p>
+            <Link
+              to="/register/doctor"
+              className="btn-secondary w-full justify-center py-2.5"
+            >
+              Créer un compte médecin
+            </Link>
+          </div>
         </div>
       </div>
     </div>

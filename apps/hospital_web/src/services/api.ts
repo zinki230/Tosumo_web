@@ -99,12 +99,47 @@ export interface DashboardStats {
   activeRelationships: number
 }
 
+export interface Institution {
+  id: string
+  name: string
+  type: string
+  phone?: string
+  email?: string
+  address?: string
+  city?: string
+  region?: string
+  logoUrl?: string
+  isVerified: boolean
+}
+
+// ── Institutions ─────────────────────────────────────────────────────────────
+export const institutionsApi = {
+  list: async (): Promise<Institution[]> => {
+    const res = await client.get('/institutions', { params: { limit: 200 } })
+    const raw: unknown[] = res.data?.data?.institutions ?? res.data?.data ?? res.data ?? []
+    return raw.map(mapInstitution)
+  },
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
   login: async (phone: string, password: string) => {
     const res = await client.post('/auth/login', { phone, password })
     const token = res.data?.data?.accessToken ?? res.data?.accessToken
     if (token) localStorage.setItem('tosumo_token', token)
+    return res.data
+  },
+  registerDoctor: async (data: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+    password: string
+    specialty: string
+    licenseNumber: string
+    institutionId: string
+  }) => {
+    const res = await client.post('/auth/register/doctor', data)
     return res.data
   },
   logout: () => {
@@ -350,6 +385,22 @@ function mapAppointment(raw: unknown): Appointment {
     type: (r['type'] as string) ?? 'consultation',
     status: (r['status'] as string) ?? 'pending',
     reason: (r['reason'] as string) ?? undefined,
+  }
+}
+
+function mapInstitution(raw: unknown): Institution {
+  const r = raw as Record<string, unknown>
+  return {
+    id: (r['id'] as string) ?? '',
+    name: (r['name'] as string) ?? '',
+    type: (r['type'] as string) ?? '',
+    phone: (r['phone'] as string) ?? undefined,
+    email: (r['email'] as string) ?? undefined,
+    address: (r['address'] as string) ?? undefined,
+    city: (r['city'] as string) ?? undefined,
+    region: (r['region'] as string) ?? undefined,
+    logoUrl: (r['logoUrl'] as string) ?? undefined,
+    isVerified: (r['isVerified'] as boolean) ?? false,
   }
 }
 
