@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
+  final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -11,6 +12,7 @@ class EmptyState extends StatelessWidget {
     super.key,
     required this.icon,
     required this.message,
+    this.subtitle,
     this.actionLabel,
     this.onAction,
   });
@@ -33,11 +35,23 @@ class EmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
+              fontWeight: FontWeight.w600,
               color: AppColors.mutedForeground.withValues(alpha: 0.6),
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.mutedForeground.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
           if (actionLabel != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextButton(
               onPressed: onAction,
               child: Text(

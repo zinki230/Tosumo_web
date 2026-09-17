@@ -13,6 +13,7 @@ import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/avatar.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
+import 'complete_profile_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -44,6 +45,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (e) {
       final failure = ErrorMapper.fromException(e);
       if (mounted) setState(() { _error = failure.message; _loading = false; });
+    }
+  }
+
+  Future<void> _completeProfile() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const CompleteProfileScreen(),
+      ),
+    );
+    if (result == true && mounted) {
+      _load();
     }
   }
 
@@ -208,10 +220,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (_error != null || _doctor == null) {
       return EmptyState(
-        icon: LucideIcons.alertCircle,
-        message: _error ?? 'Impossible de charger le profil',
-        actionLabel: 'Réessayer',
-        onAction: _load,
+        icon: LucideIcons.userCircle,
+        message: _error ?? 'Profil médecin non trouvé',
+        subtitle: 'Complétez votre profil pour commencer à utiliser l\'application',
+        actionLabel: 'Compléter mon profil',
+        onAction: _completeProfile,
       );
     }
 
