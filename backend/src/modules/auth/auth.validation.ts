@@ -83,7 +83,7 @@ export const registerDoctorSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
   specialty: z.string().min(1, 'Specialty is required'),
   licenseNumber: z.string().min(1, 'License number is required'),
-  institutionId: z.string().uuid('Invalid institution ID'),
+  institutionId: z.string().min(1, 'Institution ID is required'),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

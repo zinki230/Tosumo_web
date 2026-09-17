@@ -6,7 +6,8 @@ import { UserRole } from '@shared/types';
 const router = Router();
 const controller = new InstitutionController();
 
-router.get('/', authenticate, controller.getAll);
+// Public route for registration form
+router.get('/', controller.getAll);
 router.get('/:id', authenticate, controller.getById);
 router.post('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), controller.create);
 
