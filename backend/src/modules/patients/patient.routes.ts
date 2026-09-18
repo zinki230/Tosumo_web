@@ -1,10 +1,47 @@
 import { Router } from 'express';
 import { PatientController } from './patient.controller';
-import { authenticate } from '@shared/middleware/auth';
+import { authenticate, authorize } from '@shared/middleware/auth';
+import { UserRole, AuthenticatedRequest } from '@shared/types';
+import { Response, NextFunction } from 'express';
+import prisma from '@shared/database/prisma';
 
 const router = Router();
 const controller = new PatientController();
+router.get('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const limit = Math.min(Number(req.query.limit ?? 100), 500);
+    const search = String(req.query.search ?? '').trim();
+    const where: Record<string, unknown> = { deletedAt: null };
 
+    if (req.query.verified !== undefined) {
+      where.isVerified = req.query.verified === 'true';
+    }
+
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { nin: { contains: search, mode: 'insensitive' } },
+        { user: { phone: { contains: search } } },
+      ];
+    }
+
+    const patients = await prisma.patient.findMany({
+      where,
+      include: { 
+        user: { 
+          select: { email: true, phone: true } 
+        } 
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    res.json({ success: true, data: patients });
+  } catch (error) {
+    next(error);
+  }
+});
 router.get('/profile', authenticate, controller.getProfile);
 router.put('/profile', authenticate, controller.updateProfile);
 router.post('/onboard', authenticate, controller.onboard);

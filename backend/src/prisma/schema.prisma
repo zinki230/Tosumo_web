@@ -61,7 +61,7 @@ model Device {
 
 model Patient {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String   @unique @db.ObjectId
+  userId         String?  @unique @db.ObjectId
   nin            String?  @unique
   firstName      String?
   lastName       String?
@@ -97,7 +97,7 @@ model Patient {
   version        Int      @default(1)
   syncVersion    Int      @default(1)
 
-  user           User     @relation(fields: [userId], references: [id])
+  user           User?    @relation(fields: [userId], references: [id])
   medicalCard    MedicalCard?
   medicalBooklets MedicalBooklet[]
   emergencyInfos EmergencyInfo[]
