@@ -119,6 +119,19 @@ export const institutionsApi = {
     const raw: unknown[] = res.data?.data?.institutions ?? res.data?.data ?? res.data ?? []
     return raw.map(mapInstitution)
   },
+  register: async (data: {
+    name: string
+    type: string
+    phone: string
+    email: string
+    password: string
+    address?: string
+    city: string
+    region: string
+  }) => {
+    const res = await client.post('/auth/register/institution', data)
+    return res.data
+  },
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────

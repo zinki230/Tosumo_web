@@ -39,6 +39,7 @@ model User {
   notifications  Notification[]
   accessGrants   AccessManagement[] @relation("GrantedByUser")
   grantedToAccesses AccessManagement[] @relation("GrantedToUser")
+  createdInstitutions Institution[] @relation("CreatedInstitutions")
 }
 
 model Device {
@@ -313,7 +314,9 @@ model Institution {
   deletedAt       DateTime?
   version         Int      @default(1)
   syncVersion     Int      @default(1)
+  createdByUserId String?  @db.ObjectId
 
+  createdBy       User?    @relation("CreatedInstitutions", fields: [createdByUserId], references: [id])
   doctors         DoctorInstitution[]
   appointments    Appointment[]
   visits          Visit[]

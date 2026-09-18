@@ -32,17 +32,28 @@ import '../../database/sync_queue.dart';
 import 'local_doctor_repository.dart';
 import 'remote_doctor_repository.dart';
 
-class RepositoryCoordinator implements
-    DoctorRepository, PatientRepository, AppointmentRepository,
-    ConsultationRepository, PrescriptionRepository, LaboratoryRepository,
-    ImagingRepository, ChatRepository, NotificationRepository,
-    EmergencyRepository, AnalyticsRepository, SettingsRepository, AuthRepository {
+class RepositoryCoordinator
+    implements
+        DoctorRepository,
+        PatientRepository,
+        AppointmentRepository,
+        ConsultationRepository,
+        PrescriptionRepository,
+        LaboratoryRepository,
+        ImagingRepository,
+        ChatRepository,
+        NotificationRepository,
+        EmergencyRepository,
+        AnalyticsRepository,
+        SettingsRepository,
+        AuthRepository {
   final LocalDoctorRepository _local;
   final RemoteDoctorRepository _remote;
   final SyncQueue _syncQueue;
 
   bool _online = true;
-  final StreamController<bool> _onlineController = StreamController<bool>.broadcast();
+  final StreamController<bool> _onlineController =
+      StreamController<bool>.broadcast();
 
   Stream<bool> get onlineStream => _onlineController.stream;
   bool get isOnline => _online;
@@ -72,13 +83,19 @@ class RepositoryCoordinator implements
     return local();
   }
 
-  void _enqueueSync(String endpoint, Map<String, dynamic> body, {String type = 'POST'}) {
-    _syncQueue.enqueue(SyncOperation(
-      id: '${DateTime.now().millisecondsSinceEpoch}',
-      type: type,
-      endpoint: endpoint,
-      body: body,
-    ));
+  void _enqueueSync(
+    String endpoint,
+    Map<String, dynamic> body, {
+    String type = 'POST',
+  }) {
+    _syncQueue.enqueue(
+      SyncOperation(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        type: type,
+        endpoint: endpoint,
+        body: body,
+      ),
+    );
     if (_online) {
       unawaited(synchronize());
     }
@@ -95,9 +112,15 @@ class RepositoryCoordinator implements
 
   @override
   Future<Doctor> updateProfile(Doctor doctor) async {
-    final result = await _local.updateProfile(doctor);
-    _enqueueSync('/api/v1/doctors/${doctor.id}', doctor.toJson(), type: 'PUT');
-    return result;
+    try {
+      final result = await _remote.updateProfile(doctor);
+      await _local.updateProfile(result);
+      return result;
+    } catch (_) {
+      final result = await _local.updateProfile(doctor);
+      _enqueueSync('/api/v1/doctors/profile', doctor.toJson(), type: 'PUT');
+      return result;
+    }
   }
 
   @override
@@ -134,11 +157,24 @@ class RepositoryCoordinator implements
 
   @override
   Future<List<PatientSummary>> searchByFilters({
-    String? name, String? nationalId, String? phone, String? medicalId,
+    String? name,
+    String? nationalId,
+    String? phone,
+    String? medicalId,
   }) {
     return _fetchWithFallback(
-      remote: () => _remote.searchByFilters(name: name, nationalId: nationalId, phone: phone, medicalId: medicalId),
-      local: () => _local.searchByFilters(name: name, nationalId: nationalId, phone: phone, medicalId: medicalId),
+      remote: () => _remote.searchByFilters(
+        name: name,
+        nationalId: nationalId,
+        phone: phone,
+        medicalId: medicalId,
+      ),
+      local: () => _local.searchByFilters(
+        name: name,
+        nationalId: nationalId,
+        phone: phone,
+        medicalId: medicalId,
+      ),
     );
   }
 
@@ -164,7 +200,10 @@ class RepositoryCoordinator implements
   }
 
   @override
-  Future<PatientDetail> updatePatientVitals(String patientId, PatientVitalsUpdate update) {
+  Future<PatientDetail> updatePatientVitals(
+    String patientId,
+    PatientVitalsUpdate update,
+  ) {
     return _fetchWithFallback(
       remote: () => _remote.updatePatientVitals(patientId, update),
       local: () => _local.updatePatientVitals(patientId, update),
@@ -182,14 +221,31 @@ class RepositoryCoordinator implements
   @override
   Future<void> toggleFavorite(String patientId, bool favorite) async {
     await _local.toggleFavorite(patientId, favorite);
-    _enqueueSync('/api/v1/patients/$patientId/favorite', {'favorite': favorite}, type: 'PATCH');
+    _enqueueSync('/api/v1/patients/$patientId/favorite', {
+      'favorite': favorite,
+    }, type: 'PATCH');
   }
 
   @override
-  Future<List<Appointment>> getAppointments(String doctorId, {String? status, int? page, int? limit}) {
+  Future<List<Appointment>> getAppointments(
+    String doctorId, {
+    String? status,
+    int? page,
+    int? limit,
+  }) {
     return _fetchWithFallback(
-      remote: () => _remote.getAppointments(doctorId, status: status, page: page, limit: limit),
-      local: () => _local.getAppointments(doctorId, status: status, page: page, limit: limit),
+      remote: () => _remote.getAppointments(
+        doctorId,
+        status: status,
+        page: page,
+        limit: limit,
+      ),
+      local: () => _local.getAppointments(
+        doctorId,
+        status: status,
+        page: page,
+        limit: limit,
+      ),
     );
   }
 
@@ -210,11 +266,17 @@ class RepositoryCoordinator implements
   @override
   Future<void> rejectAppointment(String id, {String? reason}) async {
     await _local.rejectAppointment(id, reason: reason);
-    _enqueueSync('/api/v1/appointments/$id/reject', {'reason': reason}, type: 'PATCH');
+    _enqueueSync('/api/v1/appointments/$id/reject', {
+      'reason': reason,
+    }, type: 'PATCH');
   }
 
   @override
-  Future<void> rescheduleAppointment(String id, DateTime newDate, String newTimeSlot) async {
+  Future<void> rescheduleAppointment(
+    String id,
+    DateTime newDate,
+    String newTimeSlot,
+  ) async {
     await _local.rescheduleAppointment(id, newDate, newTimeSlot);
     _enqueueSync('/api/v1/appointments/$id/reschedule', {
       'date': newDate.toIso8601String(),
@@ -236,15 +298,32 @@ class RepositoryCoordinator implements
   @override
   Future<void> cancelAppointment(String id, {String? reason}) async {
     await _local.cancelAppointment(id, reason: reason);
-    _enqueueSync('/api/v1/appointments/$id/cancel', {'reason': reason}, type: 'PATCH');
+    _enqueueSync('/api/v1/appointments/$id/cancel', {
+      'reason': reason,
+    }, type: 'PATCH');
   }
 
   @override
-  Future<Appointment> bookAppointment(String patientId, String doctorId, DateTime date, String timeSlot, String type) async {
-    final result = await _local.bookAppointment(patientId, doctorId, date, timeSlot, type);
+  Future<Appointment> bookAppointment(
+    String patientId,
+    String doctorId,
+    DateTime date,
+    String timeSlot,
+    String type,
+  ) async {
+    final result = await _local.bookAppointment(
+      patientId,
+      doctorId,
+      date,
+      timeSlot,
+      type,
+    );
     _enqueueSync('/api/v1/appointments', {
-      'patientId': patientId, 'doctorId': doctorId,
-      'date': date.toIso8601String(), 'timeSlot': timeSlot, 'type': type,
+      'patientId': patientId,
+      'doctorId': doctorId,
+      'date': date.toIso8601String(),
+      'timeSlot': timeSlot,
+      'type': type,
     });
     return result;
   }
@@ -280,7 +359,11 @@ class RepositoryCoordinator implements
   @override
   Future<Consultation> updateDraft(String id, Consultation consultation) async {
     final result = await _local.updateDraft(id, consultation);
-    _enqueueSync('/api/v1/consultations/$id', consultation.toJson(), type: 'PUT');
+    _enqueueSync(
+      '/api/v1/consultations/$id',
+      consultation.toJson(),
+      type: 'PUT',
+    );
     return result;
   }
 
@@ -309,13 +392,20 @@ class RepositoryCoordinator implements
   @override
   Future<void> saveVitalSigns(String consultationId, VitalSigns vitals) async {
     await _local.saveVitalSigns(consultationId, vitals);
-    _enqueueSync('/api/v1/consultations/$consultationId/vitals', vitals.toJson(), type: 'PATCH');
+    _enqueueSync(
+      '/api/v1/consultations/$consultationId/vitals',
+      vitals.toJson(),
+      type: 'PATCH',
+    );
   }
 
   @override
   Future<Prescription> createPrescription(Prescription prescription) async {
     final result = await _local.createPrescription(prescription);
-    _enqueueSync('/api/v1/medical-records/prescriptions', prescription.toJson());
+    _enqueueSync(
+      '/api/v1/medical-records/prescriptions',
+      prescription.toJson(),
+    );
     return result;
   }
 
@@ -338,14 +428,22 @@ class RepositoryCoordinator implements
   @override
   Future<Prescription> renewPrescription(String id) async {
     final result = await _local.renewPrescription(id);
-    _enqueueSync('/api/v1/medical-records/prescriptions/$id/renew', {}, type: 'PATCH');
+    _enqueueSync(
+      '/api/v1/medical-records/prescriptions/$id/renew',
+      {},
+      type: 'PATCH',
+    );
     return result;
   }
 
   @override
   Future<void> cancelPrescription(String id) async {
     await _local.cancelPrescription(id);
-    _enqueueSync('/api/v1/medical-records/prescriptions/$id/cancel', {}, type: 'PATCH');
+    _enqueueSync(
+      '/api/v1/medical-records/prescriptions/$id/cancel',
+      {},
+      type: 'PATCH',
+    );
   }
 
   @override
@@ -388,8 +486,18 @@ class RepositoryCoordinator implements
   }
 
   @override
-  Future<void> updateLabResults(String id, {String? resultValue, String? interpretation, String? status}) async {
-    await _local.updateLabResults(id, resultValue: resultValue, interpretation: interpretation, status: status);
+  Future<void> updateLabResults(
+    String id, {
+    String? resultValue,
+    String? interpretation,
+    String? status,
+  }) async {
+    await _local.updateLabResults(
+      id,
+      resultValue: resultValue,
+      interpretation: interpretation,
+      status: status,
+    );
     _enqueueSync('/api/v1/medical-records/lab-results/$id', {
       'resultValue': resultValue,
       'interpretation': interpretation,
@@ -437,8 +545,18 @@ class RepositoryCoordinator implements
   }
 
   @override
-  Future<void> updateImagingResults(String id, {String? findings, String? impression, String? status}) async {
-    await _local.updateImagingResults(id, findings: findings, impression: impression, status: status);
+  Future<void> updateImagingResults(
+    String id, {
+    String? findings,
+    String? impression,
+    String? status,
+  }) async {
+    await _local.updateImagingResults(
+      id,
+      findings: findings,
+      impression: impression,
+      status: status,
+    );
     _enqueueSync('/api/v1/medical-records/imaging-results/$id', {
       'findings': findings,
       'impression': impression,
@@ -455,18 +573,35 @@ class RepositoryCoordinator implements
   }
 
   @override
-  Future<List<ChatMessage>> getMessages(String conversationId, {int? page, int? limit}) {
+  Future<List<ChatMessage>> getMessages(
+    String conversationId, {
+    int? page,
+    int? limit,
+  }) {
     return _fetchWithFallback(
-      remote: () => _remote.getMessages(conversationId, page: page, limit: limit),
+      remote: () =>
+          _remote.getMessages(conversationId, page: page, limit: limit),
       local: () => _local.getMessages(conversationId, page: page, limit: limit),
     );
   }
 
   @override
-  Future<ChatMessage> sendMessage(String conversationId, String text, {String? type, Map<String, dynamic>? metadata}) async {
-    final result = await _local.sendMessage(conversationId, text, type: type, metadata: metadata);
+  Future<ChatMessage> sendMessage(
+    String conversationId,
+    String text, {
+    String? type,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final result = await _local.sendMessage(
+      conversationId,
+      text,
+      type: type,
+      metadata: metadata,
+    );
     _enqueueSync('/api/v1/chats/$conversationId/messages', {
-      'text': text, 'type': type ?? 'text', 'metadata': metadata,
+      'text': text,
+      'type': type ?? 'text',
+      'metadata': metadata,
     });
     return result;
   }
@@ -480,7 +615,9 @@ class RepositoryCoordinator implements
   @override
   Future<void> markMessageDelivered(String messageId) async {
     await _local.markMessageDelivered(messageId);
-    _enqueueSync('/api/v1/chats/messages/$messageId', {'status': 'delivered'}, type: 'PATCH');
+    _enqueueSync('/api/v1/chats/messages/$messageId', {
+      'status': 'delivered',
+    }, type: 'PATCH');
   }
 
   @override
@@ -502,7 +639,11 @@ class RepositoryCoordinator implements
   @override
   Future<void> markAsRead(String notificationId) async {
     await _local.markAsRead(notificationId);
-    _enqueueSync('/api/v1/notifications/$notificationId/read', {}, type: 'PATCH');
+    _enqueueSync(
+      '/api/v1/notifications/$notificationId/read',
+      {},
+      type: 'PATCH',
+    );
   }
 
   @override
@@ -528,10 +669,20 @@ class RepositoryCoordinator implements
   }
 
   @override
-  Future<EmergencySession> startEmergencySession(String patientId, String doctorId, String justification) async {
-    final result = await _local.startEmergencySession(patientId, doctorId, justification);
+  Future<EmergencySession> startEmergencySession(
+    String patientId,
+    String doctorId,
+    String justification,
+  ) async {
+    final result = await _local.startEmergencySession(
+      patientId,
+      doctorId,
+      justification,
+    );
     _enqueueSync('/api/v1/emergency/sessions', {
-      'patientId': patientId, 'doctorId': doctorId, 'justification': justification,
+      'patientId': patientId,
+      'doctorId': doctorId,
+      'justification': justification,
     });
     return result;
   }
@@ -542,7 +693,9 @@ class RepositoryCoordinator implements
     try {
       await _remote.completeEmergencySession(sessionId);
     } catch (_) {
-      _enqueueSync('/api/v1/emergency/sessions/$sessionId', {'status': 'resolved'}, type: 'PATCH');
+      _enqueueSync('/api/v1/emergency/sessions/$sessionId', {
+        'status': 'resolved',
+      }, type: 'PATCH');
       setOnline(false);
     }
   }
@@ -556,7 +709,10 @@ class RepositoryCoordinator implements
   }
 
   @override
-  Future<Map<String, dynamic>> getDoctorStats(String doctorId, {String? period}) {
+  Future<Map<String, dynamic>> getDoctorStats(
+    String doctorId, {
+    String? period,
+  }) {
     return _fetchWithFallback(
       remote: () => _remote.getDoctorStats(doctorId, period: period),
       local: () => _local.getDoctorStats(doctorId, period: period),
@@ -748,7 +904,10 @@ class RepositoryCoordinator implements
     }
   }
 
-  Future<void> _clientDioPost(String endpoint, Map<String, dynamic> body) async {
+  Future<void> _clientDioPost(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     if (endpoint.startsWith('/api/v1/doctors')) {
       final doctor = Doctor.fromJson(body);
       await _remote.updateProfile(doctor);
@@ -798,13 +957,17 @@ class RepositoryCoordinator implements
     }
   }
 
-  Future<void> _clientDioPatch(String endpoint, Map<String, dynamic> body) async {
+  Future<void> _clientDioPatch(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     if (endpoint.startsWith('/api/v1/notifications/read-all')) {
       await _remote.markAllAsRead();
     } else if (endpoint.startsWith('/api/v1/notifications')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.markAsRead(id);
-    } else if (endpoint.contains('/api/v1/chat/') && endpoint.endsWith('/read')) {
+    } else if (endpoint.contains('/api/v1/chat/') &&
+        endpoint.endsWith('/read')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.markChatRead(id);
     } else if (endpoint.startsWith('/api/v1/settings')) {
@@ -813,10 +976,14 @@ class RepositoryCoordinator implements
       } else if (body.containsKey('theme')) {
         await _remote.updateTheme(body['theme'] as String);
       } else if (body.containsKey('notificationPreferences')) {
-        await _remote.updateNotificationPreferences(body['notificationPreferences'] as Map<String, dynamic>);
+        await _remote.updateNotificationPreferences(
+          body['notificationPreferences'] as Map<String, dynamic>,
+        );
       } else if (body.containsKey('workingHours')) {
         await _remote.updateWorkingHours(
-          (body['workingHours'] as List).map((e) => WorkingHour.fromJson(e as Map<String, dynamic>)).toList(),
+          (body['workingHours'] as List)
+              .map((e) => WorkingHour.fromJson(e as Map<String, dynamic>))
+              .toList(),
         );
       } else if (body.containsKey('pinCode')) {
         await _remote.setPinCode(body['pinCode'] as String);
@@ -825,43 +992,71 @@ class RepositoryCoordinator implements
       } else if (body.containsKey('offlineModeEnabled')) {
         await _remote.enableOfflineMode(body['offlineModeEnabled'] as bool);
       }
-    } else if (endpoint.contains('/appointments/') && endpoint.endsWith('/approve')) {
+    } else if (endpoint.contains('/appointments/') &&
+        endpoint.endsWith('/approve')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.approveAppointment(id);
-    } else if (endpoint.contains('/appointments/') && endpoint.endsWith('/reject')) {
+    } else if (endpoint.contains('/appointments/') &&
+        endpoint.endsWith('/reject')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.rejectAppointment(id);
-    } else if (endpoint.contains('/appointments/') && endpoint.endsWith('/cancel')) {
+    } else if (endpoint.contains('/appointments/') &&
+        endpoint.endsWith('/cancel')) {
       final id = endpoint.split('/').elementAt(4);
-      await _remote.cancelAppointment(id, reason: body['cancellationReason'] as String?);
-    } else if (endpoint.contains('/appointments/') && endpoint.endsWith('/complete')) {
+      await _remote.cancelAppointment(
+        id,
+        reason: body['cancellationReason'] as String?,
+      );
+    } else if (endpoint.contains('/appointments/') &&
+        endpoint.endsWith('/complete')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.completeAppointment(id);
-    } else if (endpoint.contains('/appointments/') && endpoint.endsWith('/reschedule')) {
+    } else if (endpoint.contains('/appointments/') &&
+        endpoint.endsWith('/reschedule')) {
       final id = endpoint.split('/').elementAt(4);
-      await _remote.rescheduleAppointment(id, DateTime.parse(body['appointmentDate'] as String), body['startTime'] as String);
-    } else if (endpoint.contains('/consultations/') && endpoint.endsWith('/finalize')) {
+      await _remote.rescheduleAppointment(
+        id,
+        DateTime.parse(body['appointmentDate'] as String),
+        body['startTime'] as String,
+      );
+    } else if (endpoint.contains('/consultations/') &&
+        endpoint.endsWith('/finalize')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.finalizeConsultation(id);
-    } else if (endpoint.contains('/consultations/') && endpoint.endsWith('/sign')) {
+    } else if (endpoint.contains('/consultations/') &&
+        endpoint.endsWith('/sign')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.signConsultation(id);
-    } else if (endpoint.contains('/consultations/') && endpoint.endsWith('/vitals')) {
+    } else if (endpoint.contains('/consultations/') &&
+        endpoint.endsWith('/vitals')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.saveVitalSigns(id, VitalSigns.fromJson(body));
     } else if (endpoint.contains('/medical-records/lab-results/')) {
       final id = endpoint.split('/').elementAt(5);
-      await _remote.updateLabResults(id, resultValue: body['resultValue'] as String?, interpretation: body['interpretation'] as String?, status: body['status'] as String?);
+      await _remote.updateLabResults(
+        id,
+        resultValue: body['resultValue'] as String?,
+        interpretation: body['interpretation'] as String?,
+        status: body['status'] as String?,
+      );
     } else if (endpoint.contains('/medical-records/imaging-results/')) {
       final id = endpoint.split('/').elementAt(5);
-      await _remote.updateImagingResults(id, findings: body['findings'] as String?, impression: body['impression'] as String?, status: body['status'] as String?);
-    } else if (endpoint.contains('/medical-records/prescriptions/') && endpoint.endsWith('/renew')) {
+      await _remote.updateImagingResults(
+        id,
+        findings: body['findings'] as String?,
+        impression: body['impression'] as String?,
+        status: body['status'] as String?,
+      );
+    } else if (endpoint.contains('/medical-records/prescriptions/') &&
+        endpoint.endsWith('/renew')) {
       final id = endpoint.split('/').elementAt(5);
       await _remote.renewPrescription(id);
-    } else if (endpoint.contains('/medical-records/prescriptions/') && endpoint.endsWith('/cancel')) {
+    } else if (endpoint.contains('/medical-records/prescriptions/') &&
+        endpoint.endsWith('/cancel')) {
       final id = endpoint.split('/').elementAt(5);
       await _remote.cancelPrescription(id);
-    } else if (endpoint.contains('/patients/') && endpoint.endsWith('/favorite')) {
+    } else if (endpoint.contains('/patients/') &&
+        endpoint.endsWith('/favorite')) {
       final id = endpoint.split('/').elementAt(4);
       await _remote.toggleFavorite(id, true);
     } else if (endpoint.startsWith('/api/v1/doctors/availability')) {

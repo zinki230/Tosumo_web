@@ -48,29 +48,33 @@ export class AuthService {
 
     let user;
     try {
-      user = await this.repository.create({
-        email,
-        phone,
-        passwordHash,
-        role: input.role,
-      });
-
-      // If doctor role, create a basic Doctor profile
-      if (input.role === 'doctor') {
-        const firstName = input.firstName || '';
-        const lastName = input.lastName || '';
-        // Generate a temporary unique license number until doctor completes profile
-        const tempLicenseNumber = `TEMP-${user.id.substring(0, 8)}-${Date.now()}`;
-        await prisma.doctor.create({
+      user = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
           data: {
-            userId: user.id,
-            firstName,
-            lastName,
-            specialty: 'General Practice', // Default specialty
-            licenseNumber: tempLicenseNumber, // Temporary unique license number
+            email,
+            phone,
+            passwordHash,
+            role: input.role,
           },
         });
-      }
+
+        if (input.role === 'doctor') {
+          const firstName = input.firstName?.trim() || 'Doctor';
+          const lastName = input.lastName?.trim() || 'TOSUMO';
+          const tempLicenseNumber = `TEMP-${createdUser.id.substring(0, 8)}-${Date.now()}`;
+          await tx.doctor.create({
+            data: {
+              userId: createdUser.id,
+              firstName,
+              lastName,
+              specialty: 'General Practice',
+              licenseNumber: tempLicenseNumber,
+            },
+          });
+        }
+
+        return createdUser;
+      });
     } catch (error: any) {
       // Race guard: two simultaneous registrations can both pass the
       // findByPhone check above. The database unique index (User.phone) is
@@ -418,6 +422,90 @@ export class AuthService {
         firstName: result.doctor.firstName,
         lastName: result.doctor.lastName,
         specialty: result.doctor.specialty,
+        isEmailVerified: result.user.isEmailVerified,
+        isPhoneVerified: result.user.isPhoneVerified,
+      },
+      tokens,
+    };
+  }
+
+  /**
+   * Register a new institution (health center, hospital, clinic).
+   * Creates a User with role='institution_admin' and Institution record.
+   */
+  async registerInstitution(input: RegisterInstitutionInput) {
+    const phone = normalizeCameroonPhone(input.phone);
+    if (!phone) {
+      throw new BadRequestError('Invalid Cameroon phone number');
+    }
+    const email = input.email.trim().toLowerCase();
+
+    // Check for existing user
+    const existingPhone = await this.repository.findByPhone(phone);
+    if (existingPhone) {
+      throw phoneConflict();
+    }
+
+    const existingEmail = await this.repository.findByEmail(email);
+    if (existingEmail) {
+      const err = new ConflictError('Email already registered');
+      err.code = 'EMAIL_ALREADY_REGISTERED';
+      throw err;
+    }
+
+    const passwordHash = await hashPassword(input.password);
+
+    // Create user and institution in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create User with institution_admin role
+      const user = await tx.user.create({
+        data: {
+          email,
+          phone,
+          passwordHash,
+          role: 'institution_admin',
+        },
+      });
+
+      // 2. Create Institution record
+      const institution = await tx.institution.create({
+        data: {
+          name: input.name,
+          type: input.type,
+          phone: phone,
+          email: email,
+          address: input.address || null,
+          city: input.city,
+          region: input.region,
+          isVerified: false, // Needs admin verification
+          createdByUserId: user.id,
+        },
+      });
+
+      return { user, institution };
+    });
+
+    const payload: JwtPayload = { 
+      userId: result.user.id, 
+      email: result.user.email, 
+      role: 'institution_admin' as JwtPayload['role'] 
+    };
+    const tokens = generateTokenPair(payload);
+
+    await this.repository.updateRefreshToken(result.user.id, tokens.refreshToken);
+
+    if (process.env.NODE_ENV !== 'test') {
+      sendVerificationEmail(email, tokens.accessToken).catch(console.error);
+    }
+
+    return {
+      user: {
+        id: result.user.id,
+        institutionId: result.institution.id,
+        email: result.user.email,
+        phone: result.user.phone,
+        role: result.user.role,
+        institutionName: result.institution.name,
         isEmailVerified: result.user.isEmailVerified,
         isPhoneVerified: result.user.isPhoneVerified,
       },

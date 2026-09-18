@@ -35,11 +35,21 @@ import '../../services/token_storage_service.dart';
 import '../../network/doctor_api_endpoints.dart';
 import '../doctor_response_mapper.dart';
 
-class RemoteDoctorRepository implements
-    DoctorRepository, PatientRepository, AppointmentRepository,
-    ConsultationRepository, PrescriptionRepository, LaboratoryRepository,
-    ImagingRepository, ChatRepository, NotificationRepository,
-    EmergencyRepository, AnalyticsRepository, SettingsRepository, AuthRepository {
+class RemoteDoctorRepository
+    implements
+        DoctorRepository,
+        PatientRepository,
+        AppointmentRepository,
+        ConsultationRepository,
+        PrescriptionRepository,
+        LaboratoryRepository,
+        ImagingRepository,
+        ChatRepository,
+        NotificationRepository,
+        EmergencyRepository,
+        AnalyticsRepository,
+        SettingsRepository,
+        AuthRepository {
   final ApiClient _client;
   final TokenStorageService _storage;
 
@@ -60,7 +70,11 @@ class RemoteDoctorRepository implements
   @override
   Future<Doctor> getProfile(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.doctorProfile);
-    return Doctor.fromJson(DoctorResponseMapper.doctorFromBackend(response.data as Map<String, dynamic>));
+    return Doctor.fromJson(
+      DoctorResponseMapper.doctorFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
@@ -69,14 +83,20 @@ class RemoteDoctorRepository implements
       DoctorApiEndpoints.doctorProfile,
       data: _profilePayload(doctor),
     );
-    return Doctor.fromJson(DoctorResponseMapper.doctorFromBackend(response.data as Map<String, dynamic>));
+    return Doctor.fromJson(
+      DoctorResponseMapper.doctorFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   Map<String, dynamic> _profilePayload(Doctor doctor) {
     return {
       'title': null,
       'firstName': doctor.name.split(' ').first,
-      'lastName': doctor.name.split(' ').length > 1 ? doctor.name.split(' ').sublist(1).join(' ') : '',
+      'lastName': doctor.name.split(' ').length > 1
+          ? doctor.name.split(' ').sublist(1).join(' ')
+          : '',
       'specialty': doctor.specialty,
       'bio': doctor.credentials.join(', '),
       'profilePhotoUrl': doctor.photoUrl.isEmpty ? null : doctor.photoUrl,
@@ -84,6 +104,7 @@ class RemoteDoctorRepository implements
       'languages': doctor.languages,
       'city': null,
       'region': null,
+      'institutionId': doctor.hospitalId.isEmpty ? null : doctor.hospitalId,
     }..removeWhere((_, v) => v == null);
   }
 
@@ -91,7 +112,9 @@ class RemoteDoctorRepository implements
   Future<DashboardStats> getDashboardStats(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.doctorDashboard);
     return DashboardStats.fromJson(
-      DoctorResponseMapper.dashboardStatsFromBackend(response.data as Map<String, dynamic>),
+      DoctorResponseMapper.dashboardStatsFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
     );
   }
 
@@ -125,24 +148,42 @@ class RemoteDoctorRepository implements
       queryParameters: {'query': query},
     );
     return (response.data as List)
-        .map((e) => PatientSummary.fromJson(DoctorResponseMapper.patientSummaryFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => PatientSummary.fromJson(
+            DoctorResponseMapper.patientSummaryFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
   Future<List<PatientSummary>> searchByFilters({
-    String? name, String? nationalId, String? phone, String? medicalId,
+    String? name,
+    String? nationalId,
+    String? phone,
+    String? medicalId,
   }) async {
-    final query = [name, phone, nationalId, medicalId]
-        .where((v) => v != null && v.trim().isNotEmpty)
-        .join(' ');
+    final query = [
+      name,
+      phone,
+      nationalId,
+      medicalId,
+    ].where((v) => v != null && v.trim().isNotEmpty).join(' ');
     return searchPatients(query);
   }
 
   @override
   Future<PatientDetail> getPatientById(String patientId) async {
-    final response = await _client.dio.get(DoctorApiEndpoints.patient(patientId));
-    return PatientDetail.fromJson(DoctorResponseMapper.patientDetailFromBackend(response.data as Map<String, dynamic>));
+    final response = await _client.dio.get(
+      DoctorApiEndpoints.patient(patientId),
+    );
+    return PatientDetail.fromJson(
+      DoctorResponseMapper.patientDetailFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
@@ -156,7 +197,9 @@ class RemoteDoctorRepository implements
     );
     final data = response.data as Map<String, dynamic>;
     final patient = data['patient'] as Map<String, dynamic>? ?? data;
-    return PatientDetail.fromJson(DoctorResponseMapper.patientDetailFromBackend(patient));
+    return PatientDetail.fromJson(
+      DoctorResponseMapper.patientDetailFromBackend(patient),
+    );
   }
 
   @override
@@ -178,7 +221,10 @@ class RemoteDoctorRepository implements
   }
 
   @override
-  Future<PatientDetail> updatePatientVitals(String patientId, PatientVitalsUpdate update) async {
+  Future<PatientDetail> updatePatientVitals(
+    String patientId,
+    PatientVitalsUpdate update,
+  ) async {
     final payload = <String, dynamic>{
       'bloodType': update.bloodType,
       'allergies': update.allergies,
@@ -202,7 +248,9 @@ class RemoteDoctorRepository implements
       );
       final data = response.data as Map<String, dynamic>?;
       if (data != null) {
-        return PatientDetail.fromJson(DoctorResponseMapper.patientDetailFromBackend(data));
+        return PatientDetail.fromJson(
+          DoctorResponseMapper.patientDetailFromBackend(data),
+        );
       }
     } on DioException {
       // Best-effort: the backend may not yet expose this endpoint. We still
@@ -228,7 +276,13 @@ class RemoteDoctorRepository implements
   Future<List<PatientSummary>> getRecentPatients(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.doctorPatients);
     return (response.data as List)
-        .map((e) => PatientSummary.fromJson(DoctorResponseMapper.patientSummaryFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => PatientSummary.fromJson(
+            DoctorResponseMapper.patientSummaryFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -240,7 +294,12 @@ class RemoteDoctorRepository implements
   // ---- AppointmentRepository ----
 
   @override
-  Future<List<Appointment>> getAppointments(String doctorId, {String? status, int? page, int? limit}) async {
+  Future<List<Appointment>> getAppointments(
+    String doctorId, {
+    String? status,
+    int? page,
+    int? limit,
+  }) async {
     final params = <String, dynamic>{};
     if (status != null) params['status'] = status;
     final response = await _client.dio.get(
@@ -248,14 +307,24 @@ class RemoteDoctorRepository implements
       queryParameters: params,
     );
     return (response.data as List)
-        .map((e) => Appointment.fromJson(DoctorResponseMapper.appointmentFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => Appointment.fromJson(
+            DoctorResponseMapper.appointmentFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
   Future<Appointment> getAppointment(String id) async {
     final response = await _client.dio.get(DoctorApiEndpoints.appointment(id));
-    return Appointment.fromJson(DoctorResponseMapper.appointmentFromBackend(response.data as Map<String, dynamic>));
+    return Appointment.fromJson(
+      DoctorResponseMapper.appointmentFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
@@ -272,7 +341,11 @@ class RemoteDoctorRepository implements
   }
 
   @override
-  Future<void> rescheduleAppointment(String id, DateTime newDate, String newTimeSlot) async {
+  Future<void> rescheduleAppointment(
+    String id,
+    DateTime newDate,
+    String newTimeSlot,
+  ) async {
     await _client.dio.put(
       DoctorApiEndpoints.appointmentReschedule(id),
       data: {
@@ -303,9 +376,15 @@ class RemoteDoctorRepository implements
 
   @override
   Future<Appointment> bookAppointment(
-    String patientId, String doctorId, DateTime date, String timeSlot, String type,
+    String patientId,
+    String doctorId,
+    DateTime date,
+    String timeSlot,
+    String type,
   ) async {
-    throw UnsupportedError('Appointments are booked by patients through the patient app');
+    throw UnsupportedError(
+      'Appointments are booked by patients through the patient app',
+    );
   }
 
   // ---- ConsultationRepository ----
@@ -316,20 +395,34 @@ class RemoteDoctorRepository implements
       DoctorApiEndpoints.consultations,
       data: consultationToPayload(consultation),
     );
-    return Consultation.fromJson(DoctorResponseMapper.consultationFromBackend(response.data as Map<String, dynamic>));
+    return Consultation.fromJson(
+      DoctorResponseMapper.consultationFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Future<Consultation> getConsultation(String id) async {
     final response = await _client.dio.get(DoctorApiEndpoints.consultation(id));
-    return Consultation.fromJson(DoctorResponseMapper.consultationFromBackend(response.data as Map<String, dynamic>));
+    return Consultation.fromJson(
+      DoctorResponseMapper.consultationFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Future<List<Consultation>> getPatientConsultations(String patientId) async {
     final records = await _patientRecords(patientId);
     return (records['consultations'] as List<dynamic>? ?? <dynamic>[])
-        .map((e) => Consultation.fromJson(DoctorResponseMapper.consultationFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => Consultation.fromJson(
+            DoctorResponseMapper.consultationFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -337,7 +430,13 @@ class RemoteDoctorRepository implements
   Future<List<Consultation>> getMyConsultations() async {
     final response = await _client.dio.get(DoctorApiEndpoints.consultations);
     return (response.data as List)
-        .map((e) => Consultation.fromJson(DoctorResponseMapper.consultationFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => Consultation.fromJson(
+            DoctorResponseMapper.consultationFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -347,7 +446,11 @@ class RemoteDoctorRepository implements
       DoctorApiEndpoints.consultation(id),
       data: consultationToPayload(consultation),
     );
-    return Consultation.fromJson(DoctorResponseMapper.consultationFromBackend(response.data as Map<String, dynamic>));
+    return Consultation.fromJson(
+      DoctorResponseMapper.consultationFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
@@ -364,7 +467,9 @@ class RemoteDoctorRepository implements
 
   @override
   Future<String> generatePdf(String id) async {
-    throw UnsupportedError('PDF generation is performed locally on this device');
+    throw UnsupportedError(
+      'PDF generation is performed locally on this device',
+    );
   }
 
   @override
@@ -376,16 +481,23 @@ class RemoteDoctorRepository implements
     );
   }
 
-  Map<String, dynamic> consultationToPayload(Consultation c, {VitalSigns? vitalsOverride}) {
+  Map<String, dynamic> consultationToPayload(
+    Consultation c, {
+    VitalSigns? vitalsOverride,
+  }) {
     return {
       'patientId': c.patientId,
       'appointmentId': c.appointmentId.isEmpty ? null : c.appointmentId,
       'consultationType': c.consultationType,
       'facility': c.facility.isEmpty ? null : c.facility,
-      'chiefComplaint': c.chiefComplaint.isEmpty ? c.diagnosis : c.chiefComplaint,
+      'chiefComplaint': c.chiefComplaint.isEmpty
+          ? c.diagnosis
+          : c.chiefComplaint,
       'historyOfPresentIllness': c.clinicalNotes,
       'diagnosis': c.diagnosis,
-      'differentialDiagnosis': c.differentialDiagnosis.isEmpty ? null : c.differentialDiagnosis,
+      'differentialDiagnosis': c.differentialDiagnosis.isEmpty
+          ? null
+          : c.differentialDiagnosis,
       'doctorNotes': c.doctorNotes.isEmpty ? null : c.doctorNotes,
       'recommendations': c.recommendations.isEmpty ? null : c.recommendations,
       'symptoms': c.symptoms,
@@ -403,7 +515,9 @@ class RemoteDoctorRepository implements
 
   @override
   Future<Prescription> createPrescription(Prescription prescription) async {
-    final firstMed = prescription.medications.isNotEmpty ? prescription.medications.first : null;
+    final firstMed = prescription.medications.isNotEmpty
+        ? prescription.medications.first
+        : null;
     final response = await _client.dio.post(
       DoctorApiEndpoints.prescriptions,
       data: {
@@ -413,12 +527,18 @@ class RemoteDoctorRepository implements
         'frequency': firstMed?.frequency ?? '',
         'duration': firstMed?.duration ?? '',
         'route': firstMed?.route,
-        'instructions': prescription.notes.isEmpty ? firstMed?.instructions : prescription.notes,
+        'instructions': prescription.notes.isEmpty
+            ? firstMed?.instructions
+            : prescription.notes,
         'signature': prescription.signature,
         'signedAt': prescription.signedAt,
       }..removeWhere((_, v) => v == null),
     );
-    return Prescription.fromJson(DoctorResponseMapper.prescriptionFromBackend(response.data as Map<String, dynamic>));
+    return Prescription.fromJson(
+      DoctorResponseMapper.prescriptionFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   /// Uploads a file (lab/test result) to the backend and returns its served URL.
@@ -442,25 +562,39 @@ class RemoteDoctorRepository implements
   @override
   Future<Prescription> getPrescription(String id) async {
     final response = await _client.dio.get(DoctorApiEndpoints.prescription(id));
-    return Prescription.fromJson(DoctorResponseMapper.prescriptionFromBackend(response.data as Map<String, dynamic>));
+    return Prescription.fromJson(
+      DoctorResponseMapper.prescriptionFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Future<List<Prescription>> getPatientPrescriptions(String patientId) async {
     final records = await _patientRecords(patientId);
     return (records['prescriptions'] as List<dynamic>? ?? <dynamic>[])
-        .map((e) => Prescription.fromJson(DoctorResponseMapper.prescriptionFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => Prescription.fromJson(
+            DoctorResponseMapper.prescriptionFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
   Future<Prescription> renewPrescription(String id) async {
-    throw UnsupportedError('Prescription renewal is not supported by the backend');
+    throw UnsupportedError(
+      'Prescription renewal is not supported by the backend',
+    );
   }
 
   @override
   Future<void> cancelPrescription(String id) async {
-    throw UnsupportedError('Prescription cancellation is not supported by the backend');
+    throw UnsupportedError(
+      'Prescription cancellation is not supported by the backend',
+    );
   }
 
   // ---- LaboratoryRepository (backend entity: LabResult) ----
@@ -473,7 +607,9 @@ class RemoteDoctorRepository implements
         'patientId': request.patientId,
         'testName': request.testName,
         'testCategory': request.testType,
-        'resultData': request.resultValue.isEmpty ? null : {'value': request.resultValue},
+        'resultData': request.resultValue.isEmpty
+            ? null
+            : {'value': request.resultValue},
         'resultFileUrl': null,
         'laboratoryName': null,
         'notes': request.notes.isEmpty ? null : request.notes,
@@ -481,20 +617,34 @@ class RemoteDoctorRepository implements
         'signedAt': request.signedAt,
       }..removeWhere((_, v) => v == null),
     );
-    return LabRequest.fromJson(DoctorResponseMapper.labRequestFromBackend(response.data as Map<String, dynamic>));
+    return LabRequest.fromJson(
+      DoctorResponseMapper.labRequestFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Future<LabRequest> getLabRequest(String id) async {
     final response = await _client.dio.get(DoctorApiEndpoints.labResult(id));
-    return LabRequest.fromJson(DoctorResponseMapper.labRequestFromBackend(response.data as Map<String, dynamic>));
+    return LabRequest.fromJson(
+      DoctorResponseMapper.labRequestFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Future<List<LabRequest>> getPatientLabRequests(String patientId) async {
     final records = await _patientRecords(patientId);
     return (records['labResults'] as List<dynamic>? ?? <dynamic>[])
-        .map((e) => LabRequest.fromJson(DoctorResponseMapper.labRequestFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => LabRequest.fromJson(
+            DoctorResponseMapper.labRequestFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -502,7 +652,13 @@ class RemoteDoctorRepository implements
   Future<List<LabRequest>> getPendingRequests(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.labResults);
     return (response.data as List)
-        .map((e) => LabRequest.fromJson(DoctorResponseMapper.labRequestFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => LabRequest.fromJson(
+            DoctorResponseMapper.labRequestFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .where((r) => r.status == 'pending' || r.resultValue.isEmpty)
         .toList();
   }
@@ -511,16 +667,29 @@ class RemoteDoctorRepository implements
   Future<List<LabRequest>> getAllLabRequests(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.labResults);
     return (response.data as List)
-        .map((e) => LabRequest.fromJson(DoctorResponseMapper.labRequestFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => LabRequest.fromJson(
+            DoctorResponseMapper.labRequestFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<void> updateLabResults(String id, {String? resultValue, String? interpretation, String? status}) async {
+  Future<void> updateLabResults(
+    String id, {
+    String? resultValue,
+    String? interpretation,
+    String? status,
+  }) async {
     await _client.dio.put(
       DoctorApiEndpoints.labResult(id),
       data: {
-        'resultData': resultValue != null ? {'value': resultValue, 'interpretation': interpretation} : null,
+        'resultData': resultValue != null
+            ? {'value': resultValue, 'interpretation': interpretation}
+            : null,
         'notes': interpretation,
         'status': _mapLabStatusForBackend(status),
       }..removeWhere((_, v) => v == null),
@@ -549,28 +718,54 @@ class RemoteDoctorRepository implements
         'signedAt': request.signedAt,
       }..removeWhere((_, v) => v == null),
     );
-    return ImagingRequest.fromJson(DoctorResponseMapper.imagingRequestFromBackend(response.data as Map<String, dynamic>));
+    return ImagingRequest.fromJson(
+      DoctorResponseMapper.imagingRequestFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Future<ImagingRequest> getImagingRequest(String id) async {
-    final response = await _client.dio.get(DoctorApiEndpoints.imagingResult(id));
-    return ImagingRequest.fromJson(DoctorResponseMapper.imagingRequestFromBackend(response.data as Map<String, dynamic>));
+    final response = await _client.dio.get(
+      DoctorApiEndpoints.imagingResult(id),
+    );
+    return ImagingRequest.fromJson(
+      DoctorResponseMapper.imagingRequestFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
-  Future<List<ImagingRequest>> getPatientImagingRequests(String patientId) async {
+  Future<List<ImagingRequest>> getPatientImagingRequests(
+    String patientId,
+  ) async {
     final records = await _patientRecords(patientId);
     return (records['imagingResults'] as List<dynamic>? ?? <dynamic>[])
-        .map((e) => ImagingRequest.fromJson(DoctorResponseMapper.imagingRequestFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => ImagingRequest.fromJson(
+            DoctorResponseMapper.imagingRequestFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<List<ImagingRequest>> getPendingImagingRequests(String doctorId) async {
+  Future<List<ImagingRequest>> getPendingImagingRequests(
+    String doctorId,
+  ) async {
     final response = await _client.dio.get(DoctorApiEndpoints.imagingResults);
     return (response.data as List)
-        .map((e) => ImagingRequest.fromJson(DoctorResponseMapper.imagingRequestFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => ImagingRequest.fromJson(
+            DoctorResponseMapper.imagingRequestFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .where((r) => r.status == 'pending' || r.findings.isEmpty)
         .toList();
   }
@@ -579,12 +774,23 @@ class RemoteDoctorRepository implements
   Future<List<ImagingRequest>> getAllImagingRequests(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.imagingResults);
     return (response.data as List)
-        .map((e) => ImagingRequest.fromJson(DoctorResponseMapper.imagingRequestFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => ImagingRequest.fromJson(
+            DoctorResponseMapper.imagingRequestFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<void> updateImagingResults(String id, {String? findings, String? impression, String? status}) async {
+  Future<void> updateImagingResults(
+    String id, {
+    String? findings,
+    String? impression,
+    String? status,
+  }) async {
     await _client.dio.put(
       DoctorApiEndpoints.imagingResult(id),
       data: {
@@ -597,24 +803,34 @@ class RemoteDoctorRepository implements
 
   static String? _mapLabStatusForBackend(String? status) {
     switch (status) {
-      case 'completed': return 'completed';
-      case 'cancelled': return 'cancelled';
-      case 'pending': return 'ordered';
-      default: return status;
+      case 'completed':
+        return 'completed';
+      case 'cancelled':
+        return 'cancelled';
+      case 'pending':
+        return 'ordered';
+      default:
+        return status;
     }
   }
 
   static String? _mapImagingStatusForBackend(String? status) {
     switch (status) {
-      case 'completed': return 'completed';
-      case 'cancelled': return 'cancelled';
-      case 'pending': return 'ordered';
-      default: return status;
+      case 'completed':
+        return 'completed';
+      case 'cancelled':
+        return 'cancelled';
+      case 'pending':
+        return 'ordered';
+      default:
+        return status;
     }
   }
 
   Future<Map<String, dynamic>> _patientRecords(String patientId) async {
-    final response = await _client.dio.get(DoctorApiEndpoints.medicalRecordsPatient(patientId));
+    final response = await _client.dio.get(
+      DoctorApiEndpoints.medicalRecordsPatient(patientId),
+    );
     return response.data as Map<String, dynamic>;
   }
 
@@ -624,12 +840,22 @@ class RemoteDoctorRepository implements
   Future<List<ChatConversation>> getConversations(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.chat);
     return (response.data as List)
-        .map((e) => ChatConversation.fromJson(DoctorResponseMapper.conversationFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => ChatConversation.fromJson(
+            DoctorResponseMapper.conversationFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<List<ChatMessage>> getMessages(String conversationId, {int? page, int? limit}) async {
+  Future<List<ChatMessage>> getMessages(
+    String conversationId, {
+    int? page,
+    int? limit,
+  }) async {
     final params = <String, dynamic>{};
     if (limit != null) params['limit'] = limit;
     final response = await _client.dio.get(
@@ -637,20 +863,30 @@ class RemoteDoctorRepository implements
       queryParameters: params,
     );
     return (response.data as List)
-        .map((e) => ChatMessage.fromJson(DoctorResponseMapper.messageFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => ChatMessage.fromJson(
+            DoctorResponseMapper.messageFromBackend(e as Map<String, dynamic>),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<ChatMessage> sendMessage(String conversationId, String text, {String? type, Map<String, dynamic>? metadata}) async {
+  Future<ChatMessage> sendMessage(
+    String conversationId,
+    String text, {
+    String? type,
+    Map<String, dynamic>? metadata,
+  }) async {
     final response = await _client.dio.post(
       DoctorApiEndpoints.chatMessages(conversationId),
-      data: {
-        'content': text,
-        'messageType': type ?? 'text',
-      },
+      data: {'content': text, 'messageType': type ?? 'text'},
     );
-    return ChatMessage.fromJson(DoctorResponseMapper.messageFromBackend(response.data as Map<String, dynamic>));
+    return ChatMessage.fromJson(
+      DoctorResponseMapper.messageFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
@@ -660,7 +896,9 @@ class RemoteDoctorRepository implements
 
   @override
   Future<void> markMessageDelivered(String messageId) async {
-    throw UnsupportedError('Message delivery status is not supported by the backend');
+    throw UnsupportedError(
+      'Message delivery status is not supported by the backend',
+    );
   }
 
   // ---- NotificationRepository ----
@@ -669,15 +907,29 @@ class RemoteDoctorRepository implements
   Future<List<NotificationItem>> getNotifications(String doctorId) async {
     final response = await _client.dio.get(DoctorApiEndpoints.notifications);
     return (response.data as List)
-        .map((e) => NotificationItem.fromJson(DoctorResponseMapper.notificationFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => NotificationItem.fromJson(
+            DoctorResponseMapper.notificationFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
   Future<List<NotificationItem>> getUnreadNotifications(String doctorId) async {
-    final response = await _client.dio.get(DoctorApiEndpoints.notificationUnread);
+    final response = await _client.dio.get(
+      DoctorApiEndpoints.notificationUnread,
+    );
     return (response.data as List)
-        .map((e) => NotificationItem.fromJson(DoctorResponseMapper.notificationFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => NotificationItem.fromJson(
+            DoctorResponseMapper.notificationFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -696,10 +948,16 @@ class RemoteDoctorRepository implements
   @override
   Future<EmergencySession?> getActiveSession(String doctorId) async {
     try {
-      final response = await _client.dio.get(DoctorApiEndpoints.emergencyActiveSession);
+      final response = await _client.dio.get(
+        DoctorApiEndpoints.emergencyActiveSession,
+      );
       final data = response.data;
       if (data == null) return null;
-      return EmergencySession.fromJson(DoctorResponseMapper.emergencySessionFromBackend(data as Map<String, dynamic>));
+      return EmergencySession.fromJson(
+        DoctorResponseMapper.emergencySessionFromBackend(
+          data as Map<String, dynamic>,
+        ),
+      );
     } catch (_) {
       return null;
     }
@@ -707,19 +965,35 @@ class RemoteDoctorRepository implements
 
   @override
   Future<List<EmergencySession>> getEmergencyHistory(String doctorId) async {
-    final response = await _client.dio.get(DoctorApiEndpoints.emergencySessions);
+    final response = await _client.dio.get(
+      DoctorApiEndpoints.emergencySessions,
+    );
     return (response.data as List)
-        .map((e) => EmergencySession.fromJson(DoctorResponseMapper.emergencySessionFromBackend(e as Map<String, dynamic>)))
+        .map(
+          (e) => EmergencySession.fromJson(
+            DoctorResponseMapper.emergencySessionFromBackend(
+              e as Map<String, dynamic>,
+            ),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<EmergencySession> startEmergencySession(String patientId, String doctorId, String justification) async {
+  Future<EmergencySession> startEmergencySession(
+    String patientId,
+    String doctorId,
+    String justification,
+  ) async {
     final response = await _client.dio.post(
       DoctorApiEndpoints.emergencySessions,
       data: {'patientId': patientId, 'justification': justification},
     );
-    return EmergencySession.fromJson(DoctorResponseMapper.emergencySessionFromBackend(response.data as Map<String, dynamic>));
+    return EmergencySession.fromJson(
+      DoctorResponseMapper.emergencySessionFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
@@ -731,29 +1005,44 @@ class RemoteDoctorRepository implements
   }
 
   @override
-  Future<EmergencyPatientSummary> getEmergencyPatientSummary(String patientId) async {
-    final response = await _client.dio.get(DoctorApiEndpoints.emergencyCriticalInfo(patientId));
+  Future<EmergencyPatientSummary> getEmergencyPatientSummary(
+    String patientId,
+  ) async {
+    final response = await _client.dio.get(
+      DoctorApiEndpoints.emergencyCriticalInfo(patientId),
+    );
     return EmergencyPatientSummary.fromJson(
-      DoctorResponseMapper.criticalInfoFromBackend(response.data as Map<String, dynamic>),
+      DoctorResponseMapper.criticalInfoFromBackend(
+        response.data as Map<String, dynamic>,
+      ),
     );
   }
 
   // ---- AnalyticsRepository (backend: /doctors/stats) ----
 
   @override
-  Future<Map<String, dynamic>> getDoctorStats(String doctorId, {String? period}) async {
+  Future<Map<String, dynamic>> getDoctorStats(
+    String doctorId, {
+    String? period,
+  }) async {
     final response = await _client.dio.get(DoctorApiEndpoints.doctorStats);
     return response.data as Map<String, dynamic>;
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getDiagnosisDistribution(String doctorId) async {
-    throw UnsupportedError('Diagnosis distribution is not provided by the backend');
+  Future<List<Map<String, dynamic>>> getDiagnosisDistribution(
+    String doctorId,
+  ) async {
+    throw UnsupportedError(
+      'Diagnosis distribution is not provided by the backend',
+    );
   }
 
   @override
   Future<Map<String, dynamic>> getAppointmentCompletion(String doctorId) async {
-    throw UnsupportedError('Appointment completion analytics are not provided by the backend');
+    throw UnsupportedError(
+      'Appointment completion analytics are not provided by the backend',
+    );
   }
 
   @override
@@ -782,13 +1071,17 @@ class RemoteDoctorRepository implements
   Future<void> updateWorkingHours(List<WorkingHour> hours) async {
     await _client.dio.put(
       DoctorApiEndpoints.doctorAvailability,
-      data: hours.map((h) => {
-        'dayOfWeek': h.dayOfWeek,
-        'startTime': h.startTime,
-        'endTime': h.endTime,
-        'isAvailable': h.isAvailable,
-        'slotDuration': 30,
-      }).toList(),
+      data: hours
+          .map(
+            (h) => {
+              'dayOfWeek': h.dayOfWeek,
+              'startTime': h.startTime,
+              'endTime': h.endTime,
+              'isAvailable': h.isAvailable,
+              'slotDuration': 30,
+            },
+          )
+          .toList(),
     );
   }
 
@@ -820,9 +1113,12 @@ class RemoteDoctorRepository implements
   @override
   Future<void> login(String identifier, String password) async {
     final isEmail = identifier.contains('@');
-    final response = await _client.dio.post(DoctorApiEndpoints.login, data: isEmail
-        ? {'email': identifier, 'password': password}
-        : {'phone': identifier, 'password': password});
+    final response = await _client.dio.post(
+      DoctorApiEndpoints.login,
+      data: isEmail
+          ? {'email': identifier, 'password': password}
+          : {'phone': identifier, 'password': password},
+    );
     await _persistAuth(response.data as Map<String, dynamic>);
   }
 
@@ -833,22 +1129,25 @@ class RemoteDoctorRepository implements
     required String phone,
     required String password,
   }) async {
-    await _client.dio.post(DoctorApiEndpoints.register, data: {
-      'firstName': firstName,
-      'lastName': lastName,
-      'phone': phone,
-      'password': password,
-      'role': 'doctor',
-    });
+    await _client.dio.post(
+      DoctorApiEndpoints.register,
+      data: {
+        'firstName': firstName,
+        'lastName': lastName,
+        'phone': phone,
+        'password': password,
+        'role': 'doctor',
+      },
+    );
     // Don't persist auth after register, let user login manually
   }
 
   @override
   Future<void> otpLogin(String phone, String code) async {
-    final response = await _client.dio.post(DoctorApiEndpoints.otpLogin, data: {
-      'phone': phone,
-      'code': code,
-    });
+    final response = await _client.dio.post(
+      DoctorApiEndpoints.otpLogin,
+      data: {'phone': phone, 'code': code},
+    );
     await _persistAuth(response.data as Map<String, dynamic>);
   }
 
@@ -868,10 +1167,10 @@ class RemoteDoctorRepository implements
     try {
       // NOTE: we intentionally discard the returned tokens so the doctor's
       // own session is never replaced by the patient's.
-      await _client.dio.post(DoctorApiEndpoints.verifyOtp, data: {
-        'phone': phone,
-        'code': code,
-      });
+      await _client.dio.post(
+        DoctorApiEndpoints.verifyOtp,
+        data: {'phone': phone, 'code': code},
+      );
       return true;
     } on DioException {
       return false;
@@ -879,12 +1178,15 @@ class RemoteDoctorRepository implements
   }
 
   @override
-  Future<void> resetPassword(String phone, String code, String newPassword) async {
-    await _client.dio.post(DoctorApiEndpoints.resetPassword, data: {
-      'phone': phone,
-      'code': code,
-      'newPassword': newPassword,
-    });
+  Future<void> resetPassword(
+    String phone,
+    String code,
+    String newPassword,
+  ) async {
+    await _client.dio.post(
+      DoctorApiEndpoints.resetPassword,
+      data: {'phone': phone, 'code': code, 'newPassword': newPassword},
+    );
   }
 
   @override
@@ -903,24 +1205,34 @@ class RemoteDoctorRepository implements
       // map {accessToken, refreshToken} returned by /auth/refresh.
       final data = response.data as Map<String, dynamic>;
       final nested = data['tokens'] as Map<String, dynamic>?;
-      final accessToken = (nested?['accessToken'] ?? data['accessToken']) as String?;
-      final newRefreshToken = (nested?['refreshToken'] ?? data['refreshToken']) as String?;
+      final accessToken =
+          (nested?['accessToken'] ?? data['accessToken']) as String?;
+      final newRefreshToken =
+          (nested?['refreshToken'] ?? data['refreshToken']) as String?;
       if (accessToken == null || newRefreshToken == null) {
         throw const AuthFailure(message: 'Invalid refresh response');
       }
-      await _storage.saveTokens(accessToken: accessToken, refreshToken: newRefreshToken);
+      await _storage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: newRefreshToken,
+      );
     });
   }
 
   Future<void> _persistAuth(Map<String, dynamic> data) async {
     final user = data['user'] as Map<String, dynamic>?;
     final tokens = data['tokens'] as Map<String, dynamic>?;
-    final accessToken = tokens?['accessToken'] as String? ?? data['accessToken'] as String?;
-    final refreshToken = tokens?['refreshToken'] as String? ?? data['refreshToken'] as String?;
+    final accessToken =
+        tokens?['accessToken'] as String? ?? data['accessToken'] as String?;
+    final refreshToken =
+        tokens?['refreshToken'] as String? ?? data['refreshToken'] as String?;
     if (accessToken == null || refreshToken == null) {
       throw const AuthFailure(message: 'Invalid authentication response');
     }
-    await _storage.saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+    await _storage.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
     final userId = user?['id'] as String?;
     if (userId != null) {
       await _storage.saveUserId(userId);

@@ -9,6 +9,6 @@ const controller = new InstitutionController();
 // Public route for registration form
 router.get('/', controller.getAll);
 router.get('/:id', authenticate, controller.getById);
-router.post('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), controller.create);
+router.post('/', authenticate, authorize(UserRole.DOCTOR, UserRole.ADMIN, UserRole.SUPERADMIN), controller.create);
 
 export default router;

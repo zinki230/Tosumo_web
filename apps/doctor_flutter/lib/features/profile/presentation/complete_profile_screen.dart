@@ -4,11 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/data/repositories/repository_providers.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/error_mapper.dart';
+import '../../../core/network/doctor_api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../domain/models/doctor.dart';
-import '../../../domain/models/working_hour.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 
@@ -42,6 +42,9 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   
   bool _saving = false;
   String? _error;
+  bool _loadingInstitutions = false;
+  List<Map<String, dynamic>> _institutions = [];
+  String? _selectedInstitutionId;
 
   final List<String> _availableLanguages = [
     'Français',
@@ -65,6 +68,41 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadInstitutions();
+  }
+
+  Future<void> _loadInstitutions() async {
+    setState(() => _loadingInstitutions = true);
+    try {
+      final response = await ref.read(apiClientProvider).dio.get(DoctorApiEndpoints.institutions);
+      final items = (response.data as List).whereType<Map<String, dynamic>>().toList();
+      if (!mounted) return;
+      setState(() {
+        _institutions = items;
+        _loadingInstitutions = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = ErrorMapper.fromException(e).message;
+        _loadingInstitutions = false;
+      });
+    }
+  }
+
+  String get _selectedInstitutionName {
+    final selectedId = _selectedInstitutionId;
+    if (selectedId == null) return '';
+    for (final institution in _institutions) {
+      if (institution['id'] == selectedId) {
+        return institution['name'] as String? ?? '';
+      }
+    }
+    return '';
+  }
+  @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
@@ -82,6 +120,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedInstitutionId == null) {
+      setState(() => _error = 'Veuillez selectionner un etablissement');
+      return;
+    }
     
     setState(() {
       _saving = true;
@@ -100,8 +142,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
         licenseNumber: _licenseNumberController.text.trim(),
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim(),
-        hospitalId: '', // Will be set by backend
-        hospitalName: _hospitalController.text.trim(),
+        hospitalId: _selectedInstitutionId!,
+        hospitalName: _selectedInstitutionName,
         photoUrl: '',
         credentials: _selectedCredentials,
         languages: _selectedLanguages,
@@ -252,13 +294,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                     icon: LucideIcons.coins,
                     keyboardType: TextInputType.number,
                   ),
-                  _buildTextField(
-                    controller: _hospitalController,
-                    label: 'Établissement/Hôpital *',
-                    icon: LucideIcons.building2,
-                    validator: (v) =>
-                        v?.trim().isEmpty ?? true ? 'Champ requis' : null,
-                  ),
+                  _buildInstitutionField(),
                   _buildTextField(
                     controller: _cityController,
                     label: 'Ville *',
@@ -415,6 +451,169 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
     );
   }
 
+  Widget _buildInstitutionField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _selectedInstitutionId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Etablissement/Hopital *',
+                prefixIcon: const Icon(LucideIcons.building2, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: AppColors.card,
+              ),
+              hint: Text(_loadingInstitutions ? 'Chargement...' : 'Selectionner un centre'),
+              items: _institutions.map((institution) {
+                final name = institution['name'] as String? ?? 'Centre sans nom';
+                final city = institution['city'] as String?;
+                return DropdownMenuItem<String>(
+                  value: institution['id'] as String,
+                  child: Text(city == null || city.isEmpty ? name : '$name - $city'),
+                );
+              }).toList(),
+              onChanged: _loadingInstitutions
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _selectedInstitutionId = value;
+                        _hospitalController.text = _selectedInstitutionName;
+                      });
+                    },
+              validator: (value) => value == null ? 'Champ requis' : null,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 56,
+            width: 56,
+            child: IconButton.filled(
+              tooltip: 'Ajouter un centre',
+              onPressed: _saving ? null : _showAddInstitutionDialog,
+              icon: const Icon(LucideIcons.plus),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddInstitutionDialog() async {
+    final nameController = TextEditingController();
+    final cityController = TextEditingController(text: _cityController.text.trim());
+    String type = 'clinic';
+    String? error;
+
+    final created = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Ajouter un centre de sante'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom du centre *',
+                      prefixIcon: Icon(LucideIcons.building2),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: type,
+                    decoration: const InputDecoration(
+                      labelText: 'Type',
+                      prefixIcon: Icon(LucideIcons.hospital),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'clinic', child: Text('Clinique')),
+                      DropdownMenuItem(value: 'hospital', child: Text('Hopital')),
+                      DropdownMenuItem(value: 'lab', child: Text('Laboratoire')),
+                      DropdownMenuItem(value: 'pharmacy', child: Text('Pharmacie')),
+                    ],
+                    onChanged: (value) => setDialogState(() => type = value ?? 'clinic'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: cityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Ville',
+                      prefixIcon: Icon(LucideIcons.mapPin),
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(error!, style: const TextStyle(color: AppColors.destructive)),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) {
+                      setDialogState(() => error = 'Le nom du centre est requis');
+                      return;
+                    }
+                    try {
+                      final response = await ref.read(apiClientProvider).dio.post(
+                        DoctorApiEndpoints.institutions,
+                        data: {
+                          'name': name,
+                          'type': type,
+                          if (cityController.text.trim().isNotEmpty) 'city': cityController.text.trim(),
+                        },
+                      );
+                      if (context.mounted) {
+                        Navigator.of(context).pop(response.data as Map<String, dynamic>);
+                      }
+                    } catch (e) {
+                      setDialogState(() => error = ErrorMapper.fromException(e).message);
+                    }
+                  },
+                  child: const Text('Ajouter'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    cityController.dispose();
+
+    if (created == null || !mounted) return;
+    setState(() {
+      _institutions = [..._institutions, created]
+        ..sort((a, b) => ((a['name'] as String?) ?? '').compareTo((b['name'] as String?) ?? ''));
+      _selectedInstitutionId = created['id'] as String?;
+      _hospitalController.text = created['name'] as String? ?? '';
+    });
+  }
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,

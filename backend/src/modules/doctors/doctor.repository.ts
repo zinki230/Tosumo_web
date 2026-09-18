@@ -63,9 +63,53 @@ export class DoctorRepository {
     for (const key of this.allowedProfileFields) {
       if (key in data) filtered[key] = data[key];
     }
+
+    const institutionId = typeof data.institutionId === 'string' && data.institutionId.trim() !== ''
+      ? data.institutionId.trim()
+      : null;
+
+    if (institutionId) {
+      return prisma.$transaction(async (tx) => {
+        await tx.doctorInstitution.updateMany({
+          where: { doctorId, isPrimary: true },
+          data: { isPrimary: false },
+        });
+
+        const existing = await tx.doctorInstitution.findFirst({
+          where: { doctorId, institutionId },
+        });
+
+        if (existing) {
+          await tx.doctorInstitution.update({
+            where: { id: existing.id },
+            data: { isPrimary: true },
+          });
+        } else {
+          await tx.doctorInstitution.create({
+            data: { doctorId, institutionId, isPrimary: true },
+          });
+        }
+
+        return tx.doctor.update({
+          where: { id: doctorId },
+          data: { ...filtered, version: { increment: 1 } },
+          include: {
+            availability: true,
+            workingHours: true,
+            institutions: { include: { institution: true } },
+          },
+        });
+      });
+    }
+
     return prisma.doctor.update({
       where: { id: doctorId },
       data: { ...filtered, version: { increment: 1 } },
+      include: {
+        availability: true,
+        workingHours: true,
+        institutions: { include: { institution: true } },
+      },
     });
   }
 

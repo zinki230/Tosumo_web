@@ -17,7 +17,7 @@ export const registerSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number'),
-  role: z.enum(['patient', 'doctor']),
+  role: z.enum(['patient', 'doctor', 'institution_admin']),
   firstName: z.string().min(1, 'First name is required').optional(),
   lastName: z.string().min(1, 'Last name is required').optional(),
 });
@@ -86,6 +86,21 @@ export const registerDoctorSchema = z.object({
   institutionId: z.string().min(1, 'Institution ID is required'),
 });
 
+export const registerInstitutionSchema = z.object({
+  name: z.string().min(1, 'Institution name is required'),
+  type: z.enum(['hospital', 'clinic', 'health_center', 'polyclinic']),
+  phone: phoneField,
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  address: z.string().optional(),
+  city: z.string().min(1, 'City is required'),
+  region: z.string().min(1, 'Region is required'),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterDoctorInput = z.infer<typeof registerDoctorSchema>;
+export type RegisterInstitutionInput = z.infer<typeof registerInstitutionSchema>;

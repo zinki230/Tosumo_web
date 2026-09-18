@@ -120,6 +120,18 @@ export default function Login() {
               Créer un compte médecin
             </Link>
           </div>
+
+          <div className="mt-4">
+            <p className="text-center text-sm text-slate-600 mb-3">
+              Centre hospitalier ?
+            </p>
+            <Link
+              to="/register/institution"
+              className="btn-secondary w-full justify-center py-2.5"
+            >
+              Inscrire mon établissement
+            </Link>
+          </div>
         </div>
       </div>
     </div>

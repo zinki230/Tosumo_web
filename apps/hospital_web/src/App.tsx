@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import DoctorRegister from './pages/DoctorRegister'
+import InstitutionRegister from './pages/InstitutionRegister'
 import Dashboard from './pages/Dashboard'
 import TrackingPage from './pages/TrackingPage'
 import DoctorsList from './pages/DoctorsList'
@@ -21,6 +22,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register/doctor" element={<DoctorRegister />} />
+        <Route path="/register/institution" element={<InstitutionRegister />} />
         <Route
           path="/"
           element={

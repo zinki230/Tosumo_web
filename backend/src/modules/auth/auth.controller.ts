@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { AuthenticatedRequest } from '@shared/types';
-import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema } from './auth.validation';
+import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema, registerInstitutionSchema } from './auth.validation';
 
 const authService = new AuthService();
 
@@ -131,6 +131,20 @@ export class AuthController {
       res.status(201).json({ 
         success: true, 
         message: 'Doctor registration successful', 
+        data: result 
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async registerInstitution(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const input = registerInstitutionSchema.parse(req.body);
+      const result = await authService.registerInstitution(input);
+      res.status(201).json({ 
+        success: true, 
+        message: 'Institution registration submitted', 
         data: result 
       });
     } catch (error) {
