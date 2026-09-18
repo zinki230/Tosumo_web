@@ -74,15 +74,17 @@ export class AccessService {
       deletedAt: null,
     });
 
-    emitToUser(patient.userId, 'access:request', request);
-    await this.notifications.sendNotification({
-      userId: patient.userId,
-      title: 'Demande d\'accès',
-      body: `Le Dr ${doctor.firstName} ${doctor.lastName} demande l'accès à votre dossier médical.`,
-      type: 'access',
-      data: { accessId: request.id, doctorUserId: userId, status: 'pending' },
-      actionUrl: '/access',
-    }).catch(() => undefined);
+    if (patient.userId) {
+      emitToUser(patient.userId, 'access:request', request);
+      await this.notifications.sendNotification({
+        userId: patient.userId,
+        title: 'Demande d\'accès',
+        body: `Le Dr ${doctor.firstName} ${doctor.lastName} demande l'accès à votre dossier médical.`,
+        type: 'access',
+        data: { accessId: request.id, doctorUserId: userId, status: 'pending' },
+        actionUrl: '/access',
+      }).catch(() => undefined);
+    }
 
     return this.repository.findByGrantedToId(userId);
   }
@@ -136,16 +138,18 @@ export class AccessService {
       deletedAt: null,
     });
 
-    await this.notifications
-      .sendNotification({
-        userId: patient.userId,
-        title: 'Accès médecin autorisé',
-        body: 'Un médecin a scanné votre carte médicale et dispose d\'un accès temporaire à votre dossier.',
-        type: 'access',
-        data: { accessId: grant.id, patientId, accessLevel: 'full' },
-        actionUrl: '/access',
-      })
-      .catch(() => undefined);
+    if (patient.userId) {
+      await this.notifications
+        .sendNotification({
+          userId: patient.userId,
+          title: 'Accès médecin autorisé',
+          body: 'Un médecin a scanné votre carte médicale et dispose d\'un accès temporaire à votre dossier.',
+          type: 'access',
+          data: { accessId: grant.id, patientId, accessLevel: 'full' },
+          actionUrl: '/access',
+        })
+        .catch(() => undefined);
+    }
 
     return grant;
   }

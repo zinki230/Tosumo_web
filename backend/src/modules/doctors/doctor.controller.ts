@@ -7,7 +7,8 @@ const doctorService = new DoctorService();
 export class DoctorController {
   async getAll(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const doctors = await doctorService.getAll();
+      const institutionId = req.user!.role === 'institution_admin' ? req.user!.institutionId : undefined;
+      const doctors = await doctorService.getAll(institutionId);
       res.json({ success: true, data: doctors });
     } catch (error) { next(error); }
   }

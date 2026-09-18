@@ -177,11 +177,13 @@ export class EmergencyService {
       });
     }
 
-    emitToUser(patient.userId, 'emergency:session-updated', {
-      sessionId: session.id,
-      status: 'acknowledged',
-      doctorName: `Dr. ${doctor.firstName} ${doctor.lastName}`,
-    });
+    if (patient.userId) {
+      emitToUser(patient.userId, 'emergency:session-updated', {
+        sessionId: session.id,
+        status: 'acknowledged',
+        doctorName: `Dr. ${doctor.firstName} ${doctor.lastName}`,
+      });
+    }
     return session;
   }
 
@@ -207,10 +209,12 @@ export class EmergencyService {
       updated = await this.repository.transition(sessionId, status);
     }
 
-    emitToUser(session.patient.userId, 'emergency:session-updated', {
-      sessionId,
-      status: updated.status,
-    });
+    if (session.patient.userId) {
+      emitToUser(session.patient.userId, 'emergency:session-updated', {
+        sessionId,
+        status: updated.status,
+      });
+    }
     emitToAll('emergency:session-updated', { sessionId, status: updated.status });
     return updated;
   }

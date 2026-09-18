@@ -16,8 +16,9 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 || err.response?.status === 403) {
       localStorage.removeItem('tosumo_token')
+      localStorage.removeItem('tosumo_user')
       window.location.href = '/login'
     }
     return Promise.reject(err)
@@ -111,6 +112,14 @@ export interface Institution {
   logoUrl?: string
   isVerified: boolean
 }
+export interface AuthUser {
+  id: string
+  phone?: string
+  email?: string
+  role: 'patient' | 'doctor' | 'institution_admin' | 'admin' | 'superadmin' | string
+  institutionId?: string
+  institutionName?: string
+}
 
 // ── Institutions ─────────────────────────────────────────────────────────────
 export const institutionsApi = {
@@ -139,14 +148,13 @@ export const authApi = {
   login: async (phone: string, password: string) => {
     const res = await client.post('/auth/login', { phone, password })
     const token = res.data?.data?.tokens?.accessToken ?? res.data?.data?.accessToken ?? res.data?.accessToken
-    console.log('Login response:', res.data)
-    console.log('Extracted token:', token)
+    const user = res.data?.data?.user as AuthUser | undefined
+
     if (token) {
       localStorage.setItem('tosumo_token', token)
-      console.log('Token stored in localStorage')
-    } else {
-      console.error('No token found in response!')
+      if (user) localStorage.setItem('tosumo_user', JSON.stringify(user))
     }
+
     return res.data
   },
   registerDoctor: async (data: {
@@ -164,11 +172,20 @@ export const authApi = {
   },
   logout: () => {
     localStorage.removeItem('tosumo_token')
+    localStorage.removeItem('tosumo_user')
+  },
+  getUser: (): AuthUser | null => {
+    const raw = localStorage.getItem('tosumo_user')
+    if (!raw) return null
+    try {
+      return JSON.parse(raw) as AuthUser
+    } catch {
+      return null
+    }
   },
   isAuthenticated: () => !!localStorage.getItem('tosumo_token'),
 }
-
-// ── Doctors ──────────────────────────────────────────────────────────────────
+// Doctors ──────────────────────────────────────────────────────────────────
 export const doctorsApi = {
   list: async (params?: { search?: string; specialty?: string; page?: number; limit?: number }) => {
     const res = await client.get('/doctors', { params: { ...params, limit: params?.limit ?? 50 } })

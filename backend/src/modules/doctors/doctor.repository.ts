@@ -23,9 +23,20 @@ export class DoctorRepository {
     });
   }
 
-  async findAll() {
+  async findAll(institutionId?: string) {
+    const where: any = { isVerified: true, deletedAt: null };
+    
+    // Filter by institution for institution_admin
+    if (institutionId) {
+      where.institutions = {
+        some: {
+          institutionId: institutionId
+        }
+      };
+    }
+    
     return prisma.doctor.findMany({
-      where: { isVerified: true, deletedAt: null },
+      where,
       include: { user: true, availability: true, workingHours: true, institutions: { include: { institution: true } } },
       orderBy: { averageRating: 'desc' },
     });

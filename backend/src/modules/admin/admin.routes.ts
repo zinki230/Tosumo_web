@@ -11,6 +11,7 @@ import { UserRole } from '@shared/types';
 const router = Router();
 const auditService = new AuditService();
 const doctorService = new DoctorService();
+const dashboardRoles = [UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.INSTITUTION_ADMIN];
 
 // Get all users
 router.get('/users', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -65,7 +66,7 @@ router.put('/doctors/:id/verify', authenticate, authorize(UserRole.ADMIN, UserRo
 });
 
 // Get all doctors (admin view)
-router.get('/doctors', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/doctors', authenticate, authorize(...dashboardRoles), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { isVerified, specialty } = req.query;
     const where: Record<string, unknown> = {};
@@ -82,7 +83,7 @@ router.get('/doctors', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADM
 });
 
 // Get all appointments (admin view)
-router.get('/appointments', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/appointments', authenticate, authorize(...dashboardRoles), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { status, startDate, endDate } = req.query;
     const where: Record<string, unknown> = {};
@@ -110,7 +111,7 @@ router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER
 });
 
 // Dashboard stats (admin)
-router.get('/dashboard', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/dashboard', authenticate, authorize(...dashboardRoles), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const [
       totalUsers,
@@ -138,4 +139,49 @@ router.get('/dashboard', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERA
   } catch (error) { next(error); }
 });
 
+router.get('/stats', authenticate, authorize(...dashboardRoles), async (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const appointmentsForRelationships = prisma.appointment.findMany({
+      where: { deletedAt: null },
+      select: { doctorId: true, patientId: true },
+    });
+
+    const [
+      totalDoctors,
+      totalPatients,
+      totalAppointments,
+      todayAppointments,
+      verifiedPatients,
+      relationships,
+    ] = await Promise.all([
+      prisma.doctor.count({ where: { deletedAt: null } }),
+      prisma.patient.count({ where: { deletedAt: null } }),
+      prisma.appointment.count({ where: { deletedAt: null } }),
+      prisma.appointment.count({
+        where: { deletedAt: null, appointmentDate: { gte: today, lt: tomorrow } },
+      }),
+      prisma.patient.count({ where: { deletedAt: null, isVerified: true } }),
+      appointmentsForRelationships,
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalDoctors,
+        totalPatients,
+        totalAppointments,
+        todayAppointments,
+        verifiedPatients,
+        activeRelationships: new Set(relationships.map((a) => `${a.doctorId}::${a.patientId}`)).size,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 export default router;

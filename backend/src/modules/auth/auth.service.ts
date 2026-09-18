@@ -144,7 +144,30 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role as JwtPayload['role'] };
+    // Build JWT payload with role-specific IDs
+    const payload: JwtPayload = { 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role as JwtPayload['role'] 
+    };
+
+    // Add role-specific identifiers to JWT
+    if (user.role === 'institution_admin' && user.createdInstitutions && user.createdInstitutions.length > 0) {
+      payload.institutionId = user.createdInstitutions[0].id;
+    }
+    
+    if (user.role === 'doctor' && user.doctorProfile) {
+      payload.doctorId = user.doctorProfile.id;
+      // Also add institutionId if doctor has a primary institution
+      if (user.doctorProfile.institutions && user.doctorProfile.institutions.length > 0) {
+        payload.institutionId = user.doctorProfile.institutions[0].institutionId;
+      }
+    }
+
+    if (user.role === 'patient' && user.patientProfile) {
+      payload.patientId = user.patientProfile.id;
+    }
+
     const tokens = generateTokenPair(payload);
 
     await this.repository.updateRefreshToken(user.id, tokens.refreshToken);
@@ -154,6 +177,8 @@ export class AuthService {
       user: {
         id: user.id,
         patientId: (user as any).patientProfile?.id ?? null,
+        doctorId: (user as any).doctorProfile?.id ?? null,
+        institutionId: payload.institutionId ?? null,
         isOnboarded: (user as any).patientProfile?.isOnboarded ?? false,
         email: user.email,
         phone: user.phone,

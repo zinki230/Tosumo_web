@@ -12,7 +12,24 @@ import PatientDetail from './pages/PatientDetail'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('tosumo_token')
-  if (!token) return <Navigate to="/login" replace />
+  const rawUser = localStorage.getItem('tosumo_user')
+  const allowedRoles = ['institution_admin', 'admin', 'superadmin']
+
+  let role = ''
+  if (rawUser) {
+    try {
+      role = JSON.parse(rawUser)?.role ?? ''
+    } catch {
+      role = ''
+    }
+  }
+
+  if (!token || !allowedRoles.includes(role)) {
+    localStorage.removeItem('tosumo_token')
+    localStorage.removeItem('tosumo_user')
+    return <Navigate to="/login" replace />
+  }
+
   return <>{children}</>
 }
 

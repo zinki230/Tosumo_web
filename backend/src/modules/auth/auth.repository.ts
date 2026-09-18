@@ -4,21 +4,69 @@ export class AuthRepository {
   async findByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },
-      include: { patientProfile: { select: { id: true, isOnboarded: true } } },
+      include: { 
+        patientProfile: { select: { id: true, isOnboarded: true } },
+        doctorProfile: { 
+          select: { 
+            id: true,
+            institutions: {
+              where: { isPrimary: true },
+              select: { institutionId: true },
+              take: 1
+            }
+          } 
+        },
+        createdInstitutions: {
+          select: { id: true },
+          take: 1
+        }
+      },
     });
   }
 
   async findByPhone(phone: string) {
     return prisma.user.findUnique({
       where: { phone },
-      include: { patientProfile: { select: { id: true, isOnboarded: true } } },
+      include: { 
+        patientProfile: { select: { id: true, isOnboarded: true } },
+        doctorProfile: { 
+          select: { 
+            id: true,
+            institutions: {
+              where: { isPrimary: true },
+              select: { institutionId: true },
+              take: 1
+            }
+          } 
+        },
+        createdInstitutions: {
+          select: { id: true },
+          take: 1
+        }
+      },
     });
   }
 
   async findById(id: string) {
     return prisma.user.findUnique({
       where: { id },
-      include: { patientProfile: { select: { id: true, isOnboarded: true } } },
+      include: { 
+        patientProfile: { select: { id: true, isOnboarded: true } },
+        doctorProfile: { 
+          select: { 
+            id: true,
+            institutions: {
+              where: { isPrimary: true },
+              select: { institutionId: true },
+              take: 1
+            }
+          } 
+        },
+        createdInstitutions: {
+          select: { id: true },
+          take: 1
+        }
+      },
     });
   }
 

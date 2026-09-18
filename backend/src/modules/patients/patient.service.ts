@@ -10,7 +10,9 @@ export class PatientService {
     let patient = await this.repository.findByUserId(userId);
     if (!patient) {
       const created = await this.repository.create({ userId });
-      patient = await this.repository.findByUserId(created.userId);
+      if (created.userId) {
+        patient = await this.repository.findByUserId(created.userId);
+      }
     }
     return patient;
   }
@@ -70,7 +72,9 @@ export class PatientService {
     };
     if (!patient) {
       const created = await this.repository.create({ userId, ...payload });
-      patient = await this.repository.findByUserId(created.userId);
+      if (created.userId) {
+        patient = await this.repository.findByUserId(created.userId);
+      }
     } else {
       await this.repository.update(patient.id, payload);
       patient = await this.repository.findByUserId(userId);

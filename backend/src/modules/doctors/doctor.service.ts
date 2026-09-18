@@ -8,8 +8,8 @@ export class DoctorService {
   private repository = new DoctorRepository();
   private accessService = new AccessService();
 
-  async getAll() {
-    return this.repository.findAll();
+  async getAll(institutionId?: string) {
+    return this.repository.findAll(institutionId);
   }
 
   async getById(id: string) {

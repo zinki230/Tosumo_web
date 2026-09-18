@@ -135,14 +135,14 @@ export function StatCard({
 }
 
 // ── Loading / Error ───────────────────────────────────────────────────────────
-export function Spinner({ className }: { className?: string }) {
-  return <Loader2 className={clsx('animate-spin text-primary-600', className)} size={24} />
+export function Spinner({ className, size = 24 }: { className?: string; size?: number }) {
+  return <Loader2 className={clsx('animate-spin text-primary-600', className)} size={size} />
 }
 
 export function PageLoader() {
   return (
     <div className="flex items-center justify-center h-64">
-      <Spinner size={32 as never} />
+      <Spinner size={32} />
     </div>
   )
 }

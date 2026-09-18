@@ -47,9 +47,23 @@ export class AppointmentService {
     reason?: string;
     institutionId?: string;
   }) {
-    const doctor = await prisma.doctor.findUnique({ where: { id: data.doctorId } });
+    const doctor = await prisma.doctor.findUnique({ 
+      where: { id: data.doctorId },
+      include: {
+        institutions: {
+          where: { isPrimary: true },
+          take: 1
+        }
+      }
+    });
     if (!doctor) throw new NotFoundError('Doctor not found');
     if (!doctor.isAvailable) throw new BadRequestError('Doctor is currently unavailable');
+
+    // Auto-assign institutionId from doctor's primary institution if not provided
+    let institutionId = data.institutionId;
+    if (!institutionId && doctor.institutions && doctor.institutions.length > 0) {
+      institutionId = doctor.institutions[0].institutionId;
+    }
 
     await this.assertDoctorSlot(data.doctorId, data.appointmentDate, data.startTime, data.endTime);
 
@@ -60,6 +74,7 @@ export class AppointmentService {
 
     const appointment = await this.repository.create({
       ...data,
+      institutionId, // Use the determined institutionId
       durationMinutes: 30,
       amount: doctor.consultationFee,
     });
@@ -87,15 +102,17 @@ export class AppointmentService {
     if (appointment.status !== 'pending') throw new BadRequestError('Appointment is not in pending status');
 
     const updated = await this.repository.update(appointmentId, { status: 'approved' });
-    emitToUser(appointment.patient.user.id, 'appointment:updated', updated);
-    await this.notifications.sendNotification({
-      userId: appointment.patient.user.id,
-      title: 'Rendez-vous approuvé',
-      body: `Votre rendez-vous du ${updated.startTime} a été approuvé par le Dr ${appointment.doctor.firstName} ${appointment.doctor.lastName}.`,
-      type: 'appointment',
-      data: { appointmentId, status: 'approved' },
-      actionUrl: '/appointments',
-    }).catch(() => undefined);
+    if (appointment.patient.user) {
+      emitToUser(appointment.patient.user.id, 'appointment:updated', updated);
+      await this.notifications.sendNotification({
+        userId: appointment.patient.user.id,
+        title: 'Rendez-vous approuvé',
+        body: `Votre rendez-vous du ${updated.startTime} a été approuvé par le Dr ${appointment.doctor.firstName} ${appointment.doctor.lastName}.`,
+        type: 'appointment',
+        data: { appointmentId, status: 'approved' },
+        actionUrl: '/appointments',
+      }).catch(() => undefined);
+    }
     return updated;
   }
 
@@ -107,7 +124,9 @@ export class AppointmentService {
     if (appointment.status !== 'approved') throw new BadRequestError('Appointment must be approved first');
 
     const updated = await this.repository.update(appointmentId, { status: 'confirmed' });
-    emitToUser(appointment.patient.user.id, 'appointment:updated', updated);
+    if (appointment.patient.user) {
+      emitToUser(appointment.patient.user.id, 'appointment:updated', updated);
+    }
     emitToUser(appointment.doctor.user.id, 'appointment:updated', updated);
     await this.notifications.sendNotification({
       userId: appointment.doctor.user.id,
@@ -136,7 +155,7 @@ export class AppointmentService {
       cancellationReason: reason,
     });
 
-    const notifyUser = role === 'doctor'
+    const notifyUser = role === 'doctor' && appointment.patient.user
       ? appointment.patient.user.id
       : appointment.doctor.user.id;
     emitToUser(notifyUser, 'appointment:cancelled', updated);
@@ -180,16 +199,18 @@ export class AppointmentService {
       rescheduleCount: appointment.rescheduleCount + 1,
     });
 
-    emitToUser(appointment.patient.user.id, 'appointment:rescheduled', updated);
+    if (appointment.patient.user) {
+      emitToUser(appointment.patient.user.id, 'appointment:rescheduled', updated);
+      await this.notifications.sendNotification({
+        userId: appointment.patient.user.id,
+        title: 'Rendez-vous reprogrammé',
+        body: `Votre rendez-vous a été déplacé au ${data.startTime}.`,
+        type: 'appointment',
+        data: { appointmentId, status: 'rescheduled' },
+        actionUrl: '/appointments',
+      }).catch(() => undefined);
+    }
     emitToUser(appointment.doctor.user.id, 'appointment:rescheduled', updated);
-    await this.notifications.sendNotification({
-      userId: appointment.patient.user.id,
-      title: 'Rendez-vous reprogrammé',
-      body: `Votre rendez-vous a été déplacé au ${data.startTime}.`,
-      type: 'appointment',
-      data: { appointmentId, status: 'rescheduled' },
-      actionUrl: '/appointments',
-    }).catch(() => undefined);
     await this.notifications.sendNotification({
       userId: appointment.doctor.user.id,
       title: 'Rendez-vous reprogrammé',
@@ -211,15 +232,17 @@ export class AppointmentService {
     }
 
     const updated = await this.repository.update(appointmentId, { status: 'completed' });
-    emitToUser(appointment.patient.user.id, 'appointment:completed', updated);
-    await this.notifications.sendNotification({
-      userId: appointment.patient.user.id,
-      title: 'Consultation terminée',
-      body: `Votre rendez-vous avec le Dr ${appointment.doctor.firstName} ${appointment.doctor.lastName} est terminé.`,
-      type: 'appointment',
-      data: { appointmentId, status: 'completed' },
-      actionUrl: '/medical-booklet',
-    }).catch(() => undefined);
+    if (appointment.patient.user) {
+      emitToUser(appointment.patient.user.id, 'appointment:completed', updated);
+      await this.notifications.sendNotification({
+        userId: appointment.patient.user.id,
+        title: 'Consultation terminée',
+        body: `Votre rendez-vous avec le Dr ${appointment.doctor.firstName} ${appointment.doctor.lastName} est terminé.`,
+        type: 'appointment',
+        data: { appointmentId, status: 'completed' },
+        actionUrl: '/medical-booklet',
+      }).catch(() => undefined);
+    }
     return updated;
   }
 
@@ -232,7 +255,9 @@ export class AppointmentService {
       throw new BadRequestError('Only approved or confirmed appointments can be marked as no-show');
     }
     const updated = await this.repository.update(appointmentId, { status: 'no_show' });
-    emitToUser(appointment.patient.user.id, 'appointment:updated', updated);
+    if (appointment.patient.user) {
+      emitToUser(appointment.patient.user.id, 'appointment:updated', updated);
+    }
     return updated;
   }
 

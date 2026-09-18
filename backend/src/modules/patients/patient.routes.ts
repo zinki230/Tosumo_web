@@ -17,6 +17,17 @@ router.get('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, Use
       where.isVerified = req.query.verified === 'true';
     }
 
+    // Filter by institution for institution_admin
+    if (req.user!.role === 'institution_admin' && req.user!.institutionId) {
+      // Only show patients who have appointments at this institution
+      where.appointments = {
+        some: {
+          institutionId: req.user!.institutionId,
+          deletedAt: null
+        }
+      };
+    }
+
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },

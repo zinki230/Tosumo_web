@@ -3,7 +3,10 @@ import { Request } from 'express';
 export interface JwtPayload {
   userId: string;
   email: string;
-  role: 'patient' | 'doctor' | 'admin' | 'superadmin';
+  role: 'patient' | 'doctor' | 'institution_admin' | 'admin' | 'superadmin';
+  institutionId?: string; // For institution_admin users
+  doctorId?: string; // For doctor users
+  patientId?: string; // For patient users
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -86,6 +89,7 @@ export interface UploadResult {
 export enum UserRole {
   PATIENT = 'patient',
   DOCTOR = 'doctor',
+  INSTITUTION_ADMIN = 'institution_admin',
   ADMIN = 'admin',
   SUPERADMIN = 'superadmin',
 }

@@ -36,14 +36,14 @@ export class CardsService {
           referenceId: newCard.id,
         },
       }),
-      prisma.notification.create({
+      ...(patient.userId ? [prisma.notification.create({
         data: {
           userId: patient.userId,
           title: 'Card Reissued',
           body: 'Your medical card has been reissued successfully',
           type: 'medical',
         },
-      }),
+      })] : []),
     ]);
 
     return newCard;

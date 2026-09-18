@@ -16,7 +16,14 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await authApi.login(phone, password)
+      const result = await authApi.login(phone, password)
+      const role = result?.data?.user?.role
+      const allowedRoles = ['institution_admin', 'admin', 'superadmin']
+      if (!allowedRoles.includes(role)) {
+        authApi.logout()
+        setError('Ce portail est reserve aux centres hospitaliers et administrateurs. Utilisez un compte centre hospitalier.')
+        return
+      }
       navigate('/')
     } catch (err: unknown) {
       const msg =
@@ -104,9 +111,7 @@ export default function Login() {
           </form>
 
           <p className="text-center text-xs text-slate-400 mt-5">
-            Compte de test : <span className="font-mono text-slate-500">+237691000101</span>
-            <br />
-            Mot de passe : <span className="font-mono text-slate-500">Demo@1234</span>
+            Connectez-vous avec un compte centre hospitalier ou administrateur.
           </p>
 
           <div className="mt-6 pt-6 border-t border-slate-100">
