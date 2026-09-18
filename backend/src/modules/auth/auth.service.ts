@@ -4,7 +4,7 @@ import { generateTokenPair, verifyRefreshToken } from '@shared/utils/jwt';
 import { JwtPayload } from '@shared/types';
 import { BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
 import { sendVerificationEmail } from '@shared/services/email';
-import { RegisterInput, LoginInput, RegisterDoctorInput } from './auth.validation';
+import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInput } from './auth.validation';
 import { OtpProvider, createOtpProvider } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
 import prisma from '@shared/database/prisma';
