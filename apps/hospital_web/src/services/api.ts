@@ -138,8 +138,15 @@ export const institutionsApi = {
 export const authApi = {
   login: async (phone: string, password: string) => {
     const res = await client.post('/auth/login', { phone, password })
-    const token = res.data?.data?.accessToken ?? res.data?.accessToken
-    if (token) localStorage.setItem('tosumo_token', token)
+    const token = res.data?.data?.tokens?.accessToken ?? res.data?.data?.accessToken ?? res.data?.accessToken
+    console.log('Login response:', res.data)
+    console.log('Extracted token:', token)
+    if (token) {
+      localStorage.setItem('tosumo_token', token)
+      console.log('Token stored in localStorage')
+    } else {
+      console.error('No token found in response!')
+    }
     return res.data
   },
   registerDoctor: async (data: {
