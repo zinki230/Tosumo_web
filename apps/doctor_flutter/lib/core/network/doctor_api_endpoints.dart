@@ -38,6 +38,7 @@ class DoctorApiEndpoints {
   static String doctor(String id) => '$doctors/$id';
   static const String doctorRegister = '$doctors/register';
   static const String doctorProfile = '$doctors/profile';
+  static const String doctorChangePassword = '$doctors/change-password';
   static const String doctorAvailability = '$doctors/availability';
   static const String doctorAvailabilityStatus = '$doctors/availability-status';
   static const String doctorWorkingHours = '$doctors/working-hours';

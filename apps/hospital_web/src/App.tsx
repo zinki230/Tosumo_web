@@ -6,6 +6,7 @@ import InstitutionRegister from './pages/InstitutionRegister'
 import Dashboard from './pages/Dashboard'
 import TrackingPage from './pages/TrackingPage'
 import DoctorsList from './pages/DoctorsList'
+import DoctorCreate from './pages/DoctorCreate'
 import DoctorDetail from './pages/DoctorDetail'
 import PatientsList from './pages/PatientsList'
 import PatientDetail from './pages/PatientDetail'
@@ -51,6 +52,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="suivi" element={<TrackingPage />} />
           <Route path="medecins" element={<DoctorsList />} />
+          <Route path="medecins/nouveau" element={<DoctorCreate />} />
           <Route path="medecins/:id" element={<DoctorDetail />} />
           <Route path="patients" element={<PatientsList />} />
           <Route path="patients/:id" element={<PatientDetail />} />

@@ -227,4 +227,30 @@ export class DoctorService {
     if (!doctor) throw new NotFoundError('Doctor profile not found');
     return this.repository.update(doctor.id, { isAvailable });
   }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const { verifyPassword } = await import('@shared/utils/password');
+    const { hashPassword } = await import('@shared/utils/password');
+    
+    // Get user
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User not found');
+
+    // Verify old password
+    const isValid = await verifyPassword(oldPassword, user.passwordHash);
+    if (!isValid) {
+      throw new BadRequestError('Current password is incorrect');
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash }
+    });
+
+    return { success: true, message: 'Password changed successfully' };
+  }
 }

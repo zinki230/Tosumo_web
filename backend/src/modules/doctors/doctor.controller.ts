@@ -143,4 +143,12 @@ export class DoctorController {
       res.json({ success: true, data: doctor });
     } catch (error) { next(error); }
   }
+
+  async changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { oldPassword, newPassword } = req.body;
+      const result = await doctorService.changePassword(req.user!.userId, oldPassword, newPassword);
+      res.json({ success: true, data: result, message: result.message });
+    } catch (error) { next(error); }
+  }
 }

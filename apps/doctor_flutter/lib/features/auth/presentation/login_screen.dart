@@ -160,30 +160,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: _login,
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: () => context.push('/register'),
-                            child: const Text(
-                              'Créer un compte',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => context.push('/forgot-password'),
+                          child: const Text(
+                            'Mot de passe oublié?',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          TextButton(
-                            onPressed: () => context.push('/forgot-password'),
-                            child: const Text(
-                              'Mot de passe oublié?',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Info: accounts created by health institutions
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(LucideIcons.info, size: 16, color: AppColors.primary),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Les comptes médecins sont créés par votre établissement de santé. Contactez votre administration pour obtenir vos identifiants.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  height: 1.4,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

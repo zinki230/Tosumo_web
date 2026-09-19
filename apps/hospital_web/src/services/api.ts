@@ -141,6 +141,21 @@ export const institutionsApi = {
     const res = await client.post('/auth/register/institution', data)
     return res.data
   },
+  createDoctor: async (data: {
+    firstName: string
+    lastName: string
+    phone: string
+    email?: string
+    specialty: string
+    licenseNumber: string
+  }) => {
+    const res = await client.post('/institutions/doctors', data)
+    return res.data.data
+  },
+  getDoctors: async () => {
+    const res = await client.get('/institutions/doctors/list')
+    return res.data?.data ?? []
+  },
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────

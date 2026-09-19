@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { DoctorController } from './doctor.controller';
 import { authenticate } from '@shared/middleware/auth';
+import { validate } from '@shared/middleware/validate';
+import { changePasswordSchema } from './doctor.validation';
 
 const router = Router();
 const controller = new DoctorController();
@@ -9,6 +11,7 @@ router.post('/register', authenticate, controller.register);
 router.get('/', authenticate, controller.getAll);
 router.get('/profile', authenticate, controller.getProfile);
 router.put('/profile', authenticate, controller.updateProfile);
+router.put('/change-password', authenticate, validate(changePasswordSchema), controller.changePassword);
 router.put('/availability-status', authenticate, controller.setAvailabilityStatus);
 router.get('/availability', authenticate, controller.getAvailability);
 router.put('/availability', authenticate, controller.setAvailability);
