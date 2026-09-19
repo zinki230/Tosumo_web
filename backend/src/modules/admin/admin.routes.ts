@@ -139,15 +139,52 @@ router.get('/dashboard', authenticate, authorize(...dashboardRoles), async (req:
   } catch (error) { next(error); }
 });
 
-router.get('/stats', authenticate, authorize(...dashboardRoles), async (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const isInstitutionAdmin = req.user!.role === 'institution_admin';
+    const institutionId = isInstitutionAdmin ? req.user!.institutionId : undefined;
+
+    // Base queries with institution filtering when needed
+    const doctorWhere = institutionId ? {
+      deletedAt: null,
+      institutions: { some: { institutionId } }
+    } : { deletedAt: null };
+
+    const patientWhere = institutionId ? {
+      deletedAt: null,
+      appointments: { some: { institutionId, deletedAt: null } }
+    } : { deletedAt: null };
+
+    const appointmentWhere = institutionId ? {
+      deletedAt: null,
+      institutionId
+    } : { deletedAt: null };
+
+    const todayAppointmentWhere = institutionId ? {
+      deletedAt: null,
+      institutionId,
+      appointmentDate: { gte: today, lt: tomorrow }
+    } : {
+      deletedAt: null,
+      appointmentDate: { gte: today, lt: tomorrow }
+    };
+
+    const verifiedPatientWhere = institutionId ? {
+      deletedAt: null,
+      isVerified: true,
+      appointments: { some: { institutionId, deletedAt: null } }
+    } : {
+      deletedAt: null,
+      isVerified: true
+    };
+
     const appointmentsForRelationships = prisma.appointment.findMany({
-      where: { deletedAt: null },
+      where: appointmentWhere,
       select: { doctorId: true, patientId: true },
     });
 
@@ -159,13 +196,11 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (_req: Au
       verifiedPatients,
       relationships,
     ] = await Promise.all([
-      prisma.doctor.count({ where: { deletedAt: null } }),
-      prisma.patient.count({ where: { deletedAt: null } }),
-      prisma.appointment.count({ where: { deletedAt: null } }),
-      prisma.appointment.count({
-        where: { deletedAt: null, appointmentDate: { gte: today, lt: tomorrow } },
-      }),
-      prisma.patient.count({ where: { deletedAt: null, isVerified: true } }),
+      prisma.doctor.count({ where: doctorWhere }),
+      prisma.patient.count({ where: patientWhere }),
+      prisma.appointment.count({ where: appointmentWhere }),
+      prisma.appointment.count({ where: todayAppointmentWhere }),
+      prisma.patient.count({ where: verifiedPatientWhere }),
       appointmentsForRelationships,
     ]);
 
