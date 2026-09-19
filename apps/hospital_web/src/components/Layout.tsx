@@ -40,8 +40,12 @@ export default function Layout() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-600">
-            <Activity size={18} className="text-white" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-slate-200">
+            <img 
+              src="/images/TOSUMO.png" 
+              alt="TOSUMO" 
+              className="w-8 h-8 object-contain"
+            />
           </div>
           <div>
             <p className="text-sm font-bold text-slate-900 leading-tight">TOSUMO</p>

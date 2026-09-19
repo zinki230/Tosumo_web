@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Activity, Eye, EyeOff, Loader2, Building2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Building2 } from 'lucide-react'
 import { institutionsApi } from '../services/api'
 
 export default function InstitutionRegister() {
@@ -90,8 +90,12 @@ export default function InstitutionRegister() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary-600 flex items-center justify-center shadow-lg mb-4">
-            <Activity size={28} className="text-white" />
+          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg mb-4 border border-slate-200">
+            <img 
+              src="/images/TOSUMO.png" 
+              alt="TOSUMO" 
+              className="w-14 h-14 object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">TOSUMO</h1>
           <p className="text-sm text-slate-500 mt-1">Inscription centre hospitalier</p>

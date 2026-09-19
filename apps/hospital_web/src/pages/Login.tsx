@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Activity, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { authApi } from '../services/api'
 
 export default function Login() {
@@ -40,11 +40,16 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary-600 flex items-center justify-center shadow-lg mb-4">
-            <Activity size={28} className="text-white" />
+          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg mb-4 border border-slate-200">
+            <img 
+              src="/images/TOSUMO.png" 
+              alt="TOSUMO" 
+              className="w-14 h-14 object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">TOSUMO</h1>
-          <p className="text-sm text-slate-500 mt-1">Gestion des centres hospitaliers</p>
+          <p className="text-sm text-green-600 font-medium mt-1">L'essentiel de votre santé au creux de vos mains</p>
+          <p className="text-xs text-slate-500 mt-2">Gestion des centres hospitaliers</p>
         </div>
 
         {/* Form card */}
