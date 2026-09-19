@@ -8,6 +8,7 @@ class AppButton extends StatelessWidget {
   final bool loading;
   final bool fullWidth;
   final ButtonVariant variant;
+  final IconData? icon;
 
   const AppButton({
     super.key,
@@ -16,6 +17,7 @@ class AppButton extends StatelessWidget {
     this.loading = false,
     this.fullWidth = true,
     this.variant = ButtonVariant.primary,
+    this.icon,
   });
 
   @override
@@ -73,18 +75,29 @@ class AppButton extends StatelessWidget {
       );
     }
 
+    Widget child = icon != null 
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+              Text(label),
+            ],
+          )
+        : Text(label);
+
     if (variant == ButtonVariant.secondary) {
       return OutlinedButton(
         onPressed: onPressed,
         style: style,
-        child: Text(label),
+        child: child,
       );
     }
 
     return ElevatedButton(
       onPressed: onPressed,
       style: style,
-      child: Text(label),
+      child: child,
     );
   }
 }

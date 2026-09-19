@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/api_client.dart';
 import 'persistent_sync_queue.dart';
+import 'repository_providers.dart';
 
 /// Service de synchronisation automatique qui:
 /// 1. Envoie les modifications locales au backend MongoDB

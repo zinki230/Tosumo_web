@@ -430,7 +430,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                   });
                 },
                 backgroundColor: AppColors.card,
-                selectedColor: AppColors.primary.withOpacity(0.1),
+                selectedColor: AppColors.primary.withValues(alpha: 0.1),
                 checkmarkColor: AppColors.primary,
                 labelStyle: TextStyle(
                   color: isSelected ? AppColors.primary : AppColors.foreground,
