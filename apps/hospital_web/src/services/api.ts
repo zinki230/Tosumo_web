@@ -1,8 +1,24 @@
 import axios from 'axios'
 
+// ── Configuration de l'URL API ──────────────────────────────────────────────
+const getApiBaseUrl = (): string => {
+  // En production, utiliser les variables d'environnement Vite
+  if (import.meta.env?.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  
+  // Fallback pour le développement local
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3000/api/v1'
+  }
+  
+  // Fallback pour la production si la variable d'environnement n'est pas définie
+  return 'https://tosumo-production.up.railway.app/api/v1'
+}
+
 // ── Base client ──────────────────────────────────────────────────────────────
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 })
