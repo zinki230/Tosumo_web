@@ -49,8 +49,12 @@ app.use(
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
         return callback(null, true);
       }
-      // Allow Vercel domains for hospital web app
+      // Allow Vercel domains for hospital web app (all Vercel preview and production URLs)
       if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      // Additional safety: allow specific Vercel preview domains
+      if (origin && origin.includes('vercel.app')) {
         return callback(null, true);
       }
       callback(new Error('CORS: origin not allowed'));
