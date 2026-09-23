@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && vite build", 
+    "preview": "vite preview",
+    "dev:full": "powershell -ExecutionPolicy Bypass -File start-dev.ps1",
+    "backend:dev": "cd web-backend && npm run dev",
+    "backend:install": "cd web-backend && npm install"
   },
   "dependencies": {
     "axios": "^1.7.7",

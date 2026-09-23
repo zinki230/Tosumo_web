@@ -7,13 +7,13 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_BASE_URL
   }
   
-  // Fallback pour le développement local
+  // Fallback pour le développement local avec le nouveau backend web
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return 'http://localhost:3000/api/v1'
+    return 'http://localhost:4000/api/v1'
   }
   
-  // Fallback pour la production si la variable d'environnement n'est pas définie
-  return 'https://tosumo-production.up.railway.app/api/v1'
+  // Fallback pour la production - sera remplacé par l'URL Railway du nouveau backend
+  return 'https://tosumo-web-backend.railway.app/api/v1'
 }
 
 // ── Base client ──────────────────────────────────────────────────────────────
@@ -334,9 +334,9 @@ export const trackingApi = {
   },
 
   getDashboardStats: async (): Promise<DashboardStats> => {
-    // Try admin stats endpoint first, fall back to counting manually
+    // Use the new dedicated backend dashboard endpoint
     try {
-      const res = await client.get('/admin/stats')
+      const res = await client.get('/dashboard/stats')
       const d = res.data?.data ?? res.data
       return {
         totalDoctors: d.totalDoctors ?? 0,
@@ -347,6 +347,7 @@ export const trackingApi = {
         activeRelationships: d.activeRelationships ?? 0,
       }
     } catch {
+      // Fallback to manual counting if dashboard endpoint fails
       const [doctors, patients, appointments] = await Promise.all([
         doctorsApi.list(),
         patientsApi.list(),

@@ -1,0 +1,49 @@
+# Node modules
+node_modules
+npm-debug.log*
+
+# Build outputs (will be built inside container)
+dist
+
+# Environment files (use Docker secrets instead)
+.env
+.env.local
+.env.production
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary folders
+tmp
+temp
