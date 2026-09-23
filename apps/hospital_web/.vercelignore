@@ -1,0 +1,18 @@
+# Ignore backend folder during Vercel build
+web-backend/
+web-backend/**
+
+# Ignore development files
+*.log
+.env.local
+.env.development
+
+# Ignore documentation
+*.md
+!README.md
+
+# Ignore test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
