@@ -121,19 +121,7 @@ export default function Login() {
 
           <div className="mt-6 pt-6 border-t border-slate-100">
             <p className="text-center text-sm text-slate-600 mb-3">
-              Vous êtes médecin ?
-            </p>
-            <Link
-              to="/register/doctor"
-              className="btn-secondary w-full justify-center py-2.5"
-            >
-              Créer un compte médecin
-            </Link>
-          </div>
-
-          <div className="mt-4">
-            <p className="text-center text-sm text-slate-600 mb-3">
-              Centre hospitalier ?
+              Pas encore inscrit ?
             </p>
             <Link
               to="/register/institution"
