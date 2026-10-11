@@ -27,7 +27,7 @@ export class PatientController {
         throw new ForbiddenError('Only doctors can update patient records');
       }
       const patientId = String(req.params.id);
-      const updated = await patientService.updateByDoctor(patientId, req.body);
+      const updated = await patientService.updateByDoctor(patientId, req.body, req.user!.userId);
       res.json({ success: true, data: updated });
     } catch (error) { next(error); }
   }

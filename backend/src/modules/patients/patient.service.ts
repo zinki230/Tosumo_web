@@ -1,7 +1,8 @@
 import { PatientRepository } from './patient.repository';
-import { BadRequestError, NotFoundError } from '@shared/utils/errors';
+import { BadRequestError, ForbiddenError, NotFoundError } from '@shared/utils/errors';
 import { generateCardNumber } from '@shared/utils/helpers';
 import { generateQrToken } from '@shared/utils/qr';
+import prisma from '@shared/database/prisma';
 
 export class PatientService {
   private repository = new PatientRepository();
@@ -23,10 +24,49 @@ export class PatientService {
     return this.repository.update(patient.id, data);
   }
 
-  async updateByDoctor(patientId: string, data: Record<string, unknown>) {
+  async updateByDoctor(patientId: string, data: Record<string, unknown>, doctorUserId: string) {
     const patient = await this.repository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient profile not found');
     const payload: Record<string, unknown> = { ...data };
+
+    // Scanning the QR identifies the patient; signing is a separate action.
+    // Do not persist a verified status until the doctor has recorded at least
+    // one clinical detail (or a complete emergency contact).
+    if (data['isVerified'] === true) {
+      const hasValue = (value: unknown) => typeof value === 'string' && value.trim().length > 0;
+      const hasEntries = (incoming: unknown, existing: unknown) => {
+        const values = Array.isArray(incoming) ? incoming : Array.isArray(existing) ? existing : [];
+        return values.some((value) => hasValue(value));
+      };
+      const contact = (data['emergencyContact'] ?? {}) as Record<string, unknown>;
+      const chronicHistory = patient.chronicConditions.length
+        ? patient.chronicConditions
+        : patient.chronicDiseases;
+      const hasClinicalDetails =
+        hasValue(data['bloodType'] ?? patient.bloodType) ||
+        hasEntries(data['allergies'], patient.allergies) ||
+        hasEntries(data['chronicConditions'] ?? data['chronicDiseases'], chronicHistory) ||
+        hasEntries(data['currentMeds'], patient.currentMeds) ||
+        (hasValue(contact['name'] ?? patient.emergencyContactName) &&
+          hasValue(contact['relationship'] ?? patient.emergencyContactRelationship) &&
+          hasValue(contact['phone'] ?? patient.emergencyContactPhone));
+
+      if (!hasClinicalDetails) {
+        throw new BadRequestError(
+          'Renseignez au moins une information médicale ou un contact d’urgence complet avant de signer la carte.',
+        );
+      }
+
+      const doctor = await prisma.doctor.findUnique({ where: { userId: doctorUserId } });
+      if (!doctor) throw new ForbiddenError('Profil médecin introuvable. Complétez votre profil avant de vérifier une carte.');
+      payload['verifiedBy'] = doctor.id;
+      payload['verifiedByName'] = `${doctor.firstName} ${doctor.lastName}`.trim();
+      payload['verifiedAt'] = new Date();
+    } else if (data['isVerified'] === false) {
+      payload['verifiedBy'] = null;
+      payload['verifiedByName'] = null;
+      payload['verifiedAt'] = null;
+    }
     
     // Handle emergency contact mapping
     const ec = data['emergencyContact'] as Record<string, unknown> | undefined;
@@ -44,9 +84,6 @@ export class PatientService {
       payload['chronicConditions'] = payload['chronicDiseases'];
     }
     
-    if (payload['isVerified'] === true) {
-      payload['verifiedAt'] = new Date();
-    }
     return this.repository.update(patient.id, payload);
   }
 

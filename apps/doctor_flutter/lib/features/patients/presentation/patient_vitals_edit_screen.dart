@@ -44,6 +44,7 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
   void initState() {
     super.initState();
     final p = widget.patient;
+    _signed = p.verified;
     _bloodType = p.bloodType.isNotEmpty ? p.bloodType : null;
     _allergies.addAll(p.allergies);
     _chronicConditions.addAll(p.chronicConditions);
@@ -73,6 +74,22 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
   }
 
   Future<void> _save() async {
+    final hasClinicalDetails =
+        (_bloodType?.isNotEmpty ?? false) ||
+        _allergies.isNotEmpty ||
+        _chronicConditions.isNotEmpty ||
+        _currentMeds.isNotEmpty ||
+        (_ecName.text.trim().isNotEmpty &&
+            _ecRelationship.text.trim().isNotEmpty &&
+            _ecPhone.text.trim().isNotEmpty);
+    if (_signed && !hasClinicalDetails) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Renseignez au moins une information médicale ou un contact d’urgence complet avant de signer.'),
+        ),
+      );
+      return;
+    }
     final doctor = ref.read(authProvider).doctor;
     final update = PatientVitalsUpdate(
       bloodType: _bloodType,
@@ -101,7 +118,7 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
         chronicConditions: updated.chronicConditions,
         currentMeds: updated.currentMeds,
         emergencyContact: updated.emergencyContact ?? widget.patient.emergencyContact,
-        verified: _signed,
+        verified: updated.verified,
       );
       context.pop(merged);
     } catch (e) {
@@ -135,7 +152,7 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Saisissez les informations médicales du patient non renseignées lors de l\'inscription. Ces données seront signées par le médecin.',
+              'Complétez les informations médicales du patient. Pour vérifier sa carte, renseignez au moins le groupe sanguin, une allergie, une maladie chronique, un traitement ou un contact d’urgence complet, puis activez la signature.',
               style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.4),
             ),
             const SizedBox(height: 24),

@@ -5,6 +5,7 @@ export class DoctorRepository {
     return prisma.doctor.findUnique({
       where: { userId },
       include: {
+        user: { select: { email: true, phone: true } },
         availability: true,
         workingHours: true,
         institutions: { include: { institution: true } },
@@ -16,6 +17,7 @@ export class DoctorRepository {
     return prisma.doctor.findUnique({
       where: { id },
       include: {
+        user: { select: { email: true, phone: true } },
         availability: true,
         workingHours: true,
         institutions: { include: { institution: true } },
@@ -37,7 +39,12 @@ export class DoctorRepository {
     
     return prisma.doctor.findMany({
       where,
-      include: { user: true, availability: true, workingHours: true, institutions: { include: { institution: true } } },
+      include: {
+        user: { select: { email: true, phone: true } },
+        availability: true,
+        workingHours: true,
+        institutions: { include: { institution: true } },
+      },
       orderBy: { averageRating: 'desc' },
     });
   }
@@ -192,7 +199,7 @@ export class DoctorRepository {
     const patientIds = appointments.map(a => a.patientId);
     return prisma.patient.findMany({
       where: { id: { in: patientIds } },
-      include: { user: true, medicalCard: true },
+      include: { user: { select: { email: true, phone: true } }, medicalCard: true },
     });
   }
 
@@ -208,7 +215,7 @@ export class DoctorRepository {
           { medicalCard: { is: { cardNumber: { contains: q, mode: 'insensitive' } } } },
         ],
       },
-      include: { user: true, medicalCard: true },
+      include: { user: { select: { email: true, phone: true } }, medicalCard: true },
       take: 20,
       orderBy: { updatedAt: 'desc' },
     });
@@ -220,7 +227,11 @@ export class DoctorRepository {
         deletedAt: null,
         OR: [{ cardNumber }, { qrCodeHash: cardNumber }],
       },
-      include: { patient: { include: { user: true, emergencyInfos: true } } },
+      include: {
+        patient: {
+          include: { user: { select: { email: true, phone: true } }, emergencyInfos: true },
+        },
+      },
     });
     return card?.patient ?? null;
   }

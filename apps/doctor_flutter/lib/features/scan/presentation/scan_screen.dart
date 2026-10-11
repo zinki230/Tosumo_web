@@ -80,7 +80,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     if (_scannedCode != null) return;
     final barcode = capture.barcodes.firstOrNull;
     if (barcode?.rawValue == null) return;
-    final code = barcode!.rawValue!;
+    final code = barcode!.rawValue!.trim();
     
     // Validation basique du format avant lookup
     if (!_isValidQrFormat(code)) {
@@ -104,7 +104,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     }
     
     // Legacy card number format (TOS-YYYY-XXXXX ou numérique)
-    if (code.startsWith('TOS-')) {
+    if (code.toUpperCase().startsWith('TOS-')) {
       return code.length >= 13; // TOS-2024-00001 = 13 chars minimum
     }
     
@@ -553,7 +553,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _isVerified ? 'Patient vérifié' : 'Patient non vérifié',
+                    _isVerified ? 'QR code reconnu' : 'QR code non vérifié',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

@@ -12,8 +12,8 @@ const getApiBaseUrl = (): string => {
     return 'http://localhost:4000/api/v1'
   }
   
-  // Fallback pour la production - sera remplacé par l'URL Railway du nouveau backend
-  return 'https://tosumo-web-backend.railway.app/api/v1'
+  // Keep the hospital portal on the same API and database as both mobile apps.
+  return 'https://tosumo-production.up.railway.app/api/v1'
 }
 
 // ── Base client ──────────────────────────────────────────────────────────────
@@ -166,7 +166,10 @@ export const institutionsApi = {
     licenseNumber: string
   }) => {
     const res = await client.post('/institutions/doctors', data)
-    return res.data.data
+    return {
+      ...(res.data?.data ?? {}),
+      credentials: res.data?.credentials ?? res.data?.data?.credentials,
+    }
   },
   getDoctors: async () => {
     const res = await client.get('/institutions/doctors/list')
@@ -336,7 +339,7 @@ export const trackingApi = {
   getDashboardStats: async (): Promise<DashboardStats> => {
     // Use the new dedicated backend dashboard endpoint
     try {
-      const res = await client.get('/dashboard/stats')
+      const res = await client.get('/admin/stats')
       const d = res.data?.data ?? res.data
       return {
         totalDoctors: d.totalDoctors ?? 0,

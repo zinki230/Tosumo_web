@@ -8,14 +8,24 @@ export class PatientRepository {
   async findByUserId(userId: string) {
     return prisma.patient.findUnique({
       where: { userId },
-      include: { user: true, medicalCard: true, emergencyInfos: true, medicalBooklets: true },
+      include: {
+        user: { select: { email: true, phone: true } },
+        medicalCard: true,
+        emergencyInfos: true,
+        medicalBooklets: true,
+      },
     });
   }
 
   async findById(id: string) {
     return prisma.patient.findUnique({
       where: { id },
-      include: { user: true, medicalCard: true, emergencyInfos: true, medicalBooklets: true },
+      include: {
+        user: { select: { email: true, phone: true } },
+        medicalCard: true,
+        emergencyInfos: true,
+        medicalBooklets: true,
+      },
     });
   }
 

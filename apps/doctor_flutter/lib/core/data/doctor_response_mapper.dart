@@ -196,7 +196,8 @@ class DoctorResponseMapper {
       'insuranceNumber': json['insuranceNumber'] as String? ?? '',
       'healthScore': json['healthScore'] as int? ?? 0,
       'lastVisit': json['lastVisit'] as String? ?? json['updatedAt'] as String? ?? DateTime.now().toIso8601String(),
-      'verified': json['isVerified'] == true || (json['bloodType']?.toString().isNotEmpty ?? false),
+      // QR identity verification and medical-record verification are separate.
+      'verified': json['isVerified'] as bool? ?? false,
     };
   }
 
