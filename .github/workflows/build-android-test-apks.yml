@@ -32,7 +32,7 @@ jobs:
         run: |
           sdkmanager="$(find "$ANDROID_HOME/cmdline-tools" -mindepth 3 -maxdepth 3 -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null
+          "$sdkmanager" --licenses < <(yes) >/dev/null
           "$sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
 
       - name: Set up Flutter
