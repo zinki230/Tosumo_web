@@ -30,6 +30,8 @@ import '../../../domain/models/emergency_session.dart';
 import '../../../domain/models/working_hour.dart';
 import '../../services/api_client.dart';
 import '../../services/error_mapper.dart';
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import '../../services/token_storage_service.dart';
 import '../../network/doctor_api_endpoints.dart';
@@ -189,17 +191,54 @@ class RemoteDoctorRepository
   @override
   Future<PatientDetail> getPatientByQrCode(String qrData) async {
     // The patient app now emits a signed QR token. Send it as `token`; fall
-    // back to `cardNumber` for legacy raw-number QR codes.
+    // back to `cardNumber` for legacy raw-number QR codes. Supplying the card
+    // number alongside a signed token also keeps this client compatible with
+    // backend deployments that have not yet added signed-token verification;
+    // a backend that supports tokens must still validate the signature first.
     final isToken = qrData.contains('.') && qrData.split('.').length == 3;
+    final cardNumber = isToken ? _cardNumberFromQrToken(qrData) : qrData;
     final response = await _client.dio.get(
       DoctorApiEndpoints.doctorPatientsQr,
-      queryParameters: isToken ? {'token': qrData} : {'cardNumber': qrData},
+      queryParameters: {
+        if (isToken) 'token': qrData,
+        if (cardNumber != null && cardNumber.isNotEmpty)
+          'cardNumber': cardNumber,
+      },
     );
-    final data = response.data as Map<String, dynamic>;
-    final patient = data['patient'] as Map<String, dynamic>? ?? data;
+    final data = _asStringMap(response.data);
+    if (data == null) {
+      throw const FormatException('Réponse QR invalide');
+    }
+    final patient = _asStringMap(data['patient']) ?? data;
     return PatientDetail.fromJson(
       DoctorResponseMapper.patientDetailFromBackend(patient),
     );
+  }
+
+  /// Reads only the card identifier needed for compatibility with older API
+  /// deployments. The server remains responsible for validating the QR token.
+  String? _cardNumberFromQrToken(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      if (payload is Map && payload['card'] is String) {
+        return (payload['card'] as String).trim();
+      }
+    } on FormatException {
+      // Keep sending the token; the backend will return the proper QR error.
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _asStringMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return null;
   }
 
   @override
