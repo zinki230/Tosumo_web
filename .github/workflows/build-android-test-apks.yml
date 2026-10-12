@@ -1,0 +1,65 @@
+name: Build Android test APKs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/doctor_flutter/**"
+      - "apps/patient_flutter/**"
+      - ".github/workflows/build-android-test-apks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build components
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.2"
+          channel: stable
+          cache: true
+          cache-dependency-path: |
+            apps/doctor_flutter/pubspec.lock
+            apps/patient_flutter/pubspec.lock
+
+      - name: Build patient and doctor APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for app in patient_flutter doctor_flutter; do
+            pushd "apps/$app"
+            flutter pub get
+            flutter build apk --release
+            popd
+            cp "apps/$app/build/app/outputs/flutter-apk/app-release.apk" "artifacts/tosumo-$app-release.apk"
+          done
+
+      - name: Upload test APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: tosumo-patient-doctor-test-apks
+          path: artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 14
