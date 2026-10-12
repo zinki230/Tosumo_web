@@ -142,8 +142,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     }
     
     try {
-      // TIMEOUT RÉDUIT: 5 secondes au lieu de 15
-      // Retry automatique intégré
       final patient = await _fetchWithRetry(code);
       
       if (mounted) {
@@ -190,25 +188,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             .read(patientRepositoryProvider)
             .getPatientByQrCode(code)
             .timeout(
-              const Duration(seconds: 5), // 5 secondes au lieu de 15!
-              onTimeout: () => throw Exception(
-                'Délai d\'attente dépassé. Vérifiez votre connexion.'
-              ),
+              const Duration(seconds: 20),
             );
         
         return patient;
+      } on TimeoutException {
+        if (attempt < 1) {
+          await Future.delayed(const Duration(seconds: 1));
+          continue;
+        }
+        rethrow;
       } on DioException catch (e) {
-        // Erreur réseau → retry
+        // Retry transient transport failures; a slow API must not make a
+        // valid QR code look unrecognized.
         if (e.type == DioExceptionType.connectionTimeout ||
             e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.connectionError) {
           if (attempt < 1) {
-            // Attendre 1 seconde avant retry
             await Future.delayed(const Duration(seconds: 1));
             continue;
           }
         }
-        // Autres erreurs → ne pas retry
         rethrow;
       } catch (e) {
         // Exception autre que Dio → ne pas retry
@@ -224,11 +225,30 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   String _extractQrError(Object e) {
     if (e is DioException) {
       final data = e.response?.data;
-      if (data is Map && data['message'] is String && (data['message'] as String).isNotEmpty) {
-        return data['message'] as String;
+      if (data is Map) {
+        for (final key in ['message', 'error']) {
+          final value = data[key];
+          if (value is String && value.trim().isNotEmpty) {
+            return value.trim();
+          }
+        }
+      }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.cancel) {
+        final message = e.message;
+        if (message != null && message.isNotEmpty) return message;
+      }
+      if (e.type == DioExceptionType.badResponse) {
+        return 'Le serveur n’a pas pu vérifier ce QR code. Vérifiez la connexion puis réessayez.';
       }
     }
-    return 'QR code non reconnu. Veuillez réessayer.';
+    if (e is TimeoutException) {
+      return 'La vérification prend trop de temps. Vérifiez la connexion puis réessayez.';
+    }
+    return 'La vérification du QR code a échoué. Vérifiez la connexion puis réessayez.';
   }
 
   Future<void> _openRecord() async {
