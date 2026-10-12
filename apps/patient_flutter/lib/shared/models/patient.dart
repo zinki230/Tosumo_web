@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 part 'patient.freezed.dart';
 part 'patient.g.dart';
@@ -19,6 +20,9 @@ sealed class Patient with _$Patient {
     required String emergencyContactName,  // Flattened from EmergencyContact
     required String emergencyContactRelationship,  // Flattened from EmergencyContact
     required String emergencyContactPhone,  // Flattened from EmergencyContact
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(EmergencyContact(name: '', relationship: '', phone: ''))
+    EmergencyContact emergencyContact,
     @Default('ACTIVE') String status,
     @Default(false) bool verified,
     String? gender,
@@ -29,4 +33,16 @@ sealed class Patient with _$Patient {
 
   factory Patient.fromJson(Map<String, dynamic> json) =>
       _$PatientFromJson(json);
+}
+
+class EmergencyContact {
+  const EmergencyContact({
+    required this.name,
+    required this.relationship,
+    required this.phone,
+  });
+
+  final String name;
+  final String relationship;
+  final String phone;
 }

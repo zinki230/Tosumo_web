@@ -224,10 +224,17 @@ class PatientNotifier extends Notifier<PatientState> {
         Patient(
           id: patientId,
           name: '',
-          dateOfBirth: '',
+          dateOfBirth: DateTime.now(),
           nationalId: '',
-          contactInfo: const ContactInfo(phone: '', email: ''),
+          phone: '',
+          email: '',
           bloodType: '',
+          allergies: const [],
+          chronicConditions: const [],
+          currentMeds: const [],
+          emergencyContactName: '',
+          emergencyContactRelationship: '',
+          emergencyContactPhone: '',
           emergencyContact: const EmergencyContact(name: '', relationship: '', phone: ''),
         );
     return base.copyWith(name: authName);
@@ -443,6 +450,9 @@ class PatientNotifier extends Notifier<PatientState> {
       if (state.patient != null) {
         state = state.copyWith(
           patient: state.patient!.copyWith(
+            emergencyContactName: name,
+            emergencyContactRelationship: relationship,
+            emergencyContactPhone: phone,
             emergencyContact: EmergencyContact(
               name: name,
               relationship: relationship,

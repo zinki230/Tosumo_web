@@ -47,9 +47,13 @@ class ResponseMapper {
       emergencyContactName: json['emergencyContactName'] as String? ?? '',
       emergencyContactRelationship: json['emergencyContactRelationship'] as String? ?? '',
       emergencyContactPhone: json['emergencyContactPhone'] as String? ?? '',
+      emergencyContact: EmergencyContact(
+        name: json['emergencyContactName'] as String? ?? '',
+        relationship: json['emergencyContactRelationship'] as String? ?? '',
+        phone: json['emergencyContactPhone'] as String? ?? '',
+      ),
       status: json['isActive'] == true ? 'ACTIVE' : 'INACTIVE',
-      verified: json['isVerified'] == true ||
-          (json['bloodType']?.toString().isNotEmpty ?? false),
+      verified: json['isVerified'] == true,
       photoUrl: json['profilePhotoUrl'] as String?,
       city: json['city'] as String? ?? '',
       address: json['address'] as String? ?? '',

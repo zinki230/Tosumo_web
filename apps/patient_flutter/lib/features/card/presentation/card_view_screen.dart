@@ -58,7 +58,7 @@ class CardViewScreen extends ConsumerWidget {
                 child: PremiumMedicalCard(
                   name: patient.name,
                   nationalId: patient.nationalId,
-                  dateOfBirth: patient.dateOfBirth,
+                  dateOfBirth: patient.dateOfBirth.toIso8601String(),
                   bloodType: patient.bloodType,
                   status: patient.status,
                   verified: patient.verified,
