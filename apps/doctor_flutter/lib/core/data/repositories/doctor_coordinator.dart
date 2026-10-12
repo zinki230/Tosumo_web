@@ -188,10 +188,11 @@ class RepositoryCoordinator
 
   @override
   Future<PatientDetail> getPatientByQrCode(String qrData) {
-    return _fetchWithFallback(
-      remote: () => _remote.getPatientByQrCode(qrData),
-      local: () => _local.getPatientByQrCode(qrData),
-    );
+    // QR verification grants server-side access and must never be inferred
+    // from a local cache. Let the remote error reach the scanner so it can
+    // show the real verification/network failure instead of a misleading
+    // local "patient not found" error.
+    return _remote.getPatientByQrCode(qrData);
   }
 
   @override
