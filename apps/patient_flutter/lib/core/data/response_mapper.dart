@@ -438,6 +438,28 @@ class ResponseMapper {
       status: status,
     );
   }
+
+  /// Maps a patient model to the backend-compatible update payload.
+  static Map<String, dynamic> patientToBackend(Patient patient) {
+    final nameParts = patient.name.trim().split(RegExp(r'\s+'));
+    return {
+      'firstName': nameParts.isEmpty ? '' : nameParts.first,
+      'lastName': nameParts.length > 1 ? nameParts.skip(1).join(' ') : '',
+      'dateOfBirth': patient.dateOfBirth.toIso8601String(),
+      'nin': patient.nationalId,
+      'gender': patient.gender,
+      'bloodType': patient.bloodType,
+      'allergies': patient.allergies,
+      'chronicConditions': patient.chronicConditions,
+      'currentMeds': patient.currentMeds,
+      'emergencyContactName': patient.emergencyContactName,
+      'emergencyContactRelationship': patient.emergencyContactRelationship,
+      'emergencyContactPhone': patient.emergencyContactPhone,
+      'city': patient.city,
+      'address': patient.address,
+      'profilePhotoUrl': patient.photoUrl,
+    };
+  }
 }
 
 class Appointment {
@@ -474,28 +496,3 @@ class Appointment {
     return parsed != null && parsed.isAfter(DateTime.now());
   }
 }
-
-
-  /// Maps Patient model to backend-compatible format for updates
-  static Map<String, dynamic> patientToBackend(Patient patient) {
-    return {
-      'firstName': patient.name.split(' ').first,
-      'lastName': patient.name.split(' ').length > 1 
-          ? patient.name.split(' ').skip(1).join(' ') 
-          : '',
-      'dateOfBirth': patient.dateOfBirth.toIso8601String(),
-      'nin': patient.nationalId,
-      'gender': patient.gender,
-      'bloodType': patient.bloodType,
-      'allergies': patient.allergies,
-      'chronicConditions': patient.chronicConditions,
-      'currentMeds': patient.currentMeds,
-      // Flatten emergency contact
-      'emergencyContactName': patient.emergencyContactName,
-      'emergencyContactRelationship': patient.emergencyContactRelationship,
-      'emergencyContactPhone': patient.emergencyContactPhone,
-      'city': patient.city,
-      'address': patient.address,
-      'profilePhotoUrl': patient.photoUrl,
-    };
-  }
