@@ -8,11 +8,10 @@ import {
 } from '@shared/utils/errors';
 
 /**
- * In-memory record of QR tokens that have already been redeemed. Single-use
- * enforcement is best-effort: it survives restarts of a single instance and is
- * scoped per backend process. For multi-instance production this should be a
- * shared store (Redis); the graceful fallback below keeps a re-scan safe even
- * when a token was already used but the doctor already holds access.
+ * In-memory record of QR tokens redeemed by each doctor. A patient may present
+ * the same short-lived card QR to multiple doctors, so redemption is scoped to
+ * the doctor rather than consumed globally. This remains best-effort per
+ * backend process; the persisted access grant is the authorization source.
  */
 const usedTokens = new Set<string>();
 
@@ -51,7 +50,7 @@ export function generateQrToken(payload: QrTokenPayload): {
   return { token, expiresAt: expiresAt.toISOString() };
 }
 
-export function verifyQrToken(token: string): QrTokenResult {
+export function verifyQrToken(token: string, doctorUserId: string): QrTokenResult {
   if (!token || typeof token !== 'string') {
     throw new QrTokenInvalidError('QR code invalide.');
   }
@@ -79,14 +78,14 @@ export function verifyQrToken(token: string): QrTokenResult {
     patientId: decoded.sub,
     cardNumber: decoded.card,
     jti: decoded.jti,
-    used: isQrTokenUsed(decoded.jti),
+    used: isQrTokenUsed(decoded.jti, doctorUserId),
   };
 }
 
-export function markQrTokenUsed(jti: string): void {
-  usedTokens.add(jti);
+export function markQrTokenUsed(jti: string, doctorUserId: string): void {
+  usedTokens.add(`${jti}:${doctorUserId}`);
 }
 
-export function isQrTokenUsed(jti: string): boolean {
-  return usedTokens.has(jti);
+export function isQrTokenUsed(jti: string, doctorUserId: string): boolean {
+  return usedTokens.has(`${jti}:${doctorUserId}`);
 }

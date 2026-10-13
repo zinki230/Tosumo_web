@@ -126,18 +126,17 @@ export class DoctorService {
     if (!doctor) throw new NotFoundError('Doctor profile not found');
 
     // Preferred path: a signed QR token from the patient app. The token is
-    // cryptographically verified (signature + expiry + single-use) and the
+    // cryptographically verified (signature + expiry + per-doctor redemption) and the
     // doctor's authenticated identity is required before any patient data is
     // returned. A valid token is treated as in-person consent and creates a
     // temporary, auto-approved access grant for this doctor→patient pair.
     if (token) {
-      const decoded = verifyQrToken(token);
+      const decoded = verifyQrToken(token, userId);
       const patient = await this.repository.findPatientByCard(decoded.cardNumber);
       if (!patient) throw new NotFoundError('No patient found for this medical card');
 
-      // Single-use with a graceful fallback: if the token was already redeemed
-      // but this doctor already holds an active access grant, allow the lookup
-      // so the demo / repeated views never get stuck. Otherwise reject.
+      // Allow each doctor to redeem this patient QR once. Re-scans by the same
+      // doctor remain available while their temporary access grant is active.
       if (decoded.used) {
         const activeGrant = await prisma.accessManagement.findFirst({
           where: {
@@ -153,7 +152,7 @@ export class DoctorService {
         }
       } else {
         const access = await this.accessService.grantScanAccess(patient.id, userId);
-        markQrTokenUsed(decoded.jti);
+        markQrTokenUsed(decoded.jti, userId);
         return { patient, access, scannedVia: 'token' };
       }
 
