@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { AuthenticatedRequest } from '@shared/types';
-import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema, registerInstitutionSchema } from './auth.validation';
+import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, otpLoginSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema, registerInstitutionSchema } from './auth.validation';
 
 const authService = new AuthService();
 
@@ -28,8 +28,8 @@ export class AuthController {
 
   async otpLogin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { phone, code } = verifyOtpSchema.parse(req.body);
-      const result = await authService.otpLogin(phone, code);
+      const { phone, code, expectedRole } = otpLoginSchema.parse(req.body);
+      const result = await authService.otpLogin(phone, code, expectedRole);
       res.json({ success: true, message: 'Login successful', data: result });
     } catch (error) {
       next(error);

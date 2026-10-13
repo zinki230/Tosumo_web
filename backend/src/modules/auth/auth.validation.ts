@@ -26,6 +26,8 @@ export const loginSchema = z.object({
   email: z.string().email('Invalid email address').optional(),
   phone: phoneField.optional(),
   password: z.string().min(1, 'Password is required'),
+  // Optional so existing web and patient clients keep the same contract.
+  expectedRole: z.literal('doctor').optional(),
 }).refine(data => data.email || data.phone, {
   message: 'Email or phone is required',
 });
@@ -62,6 +64,10 @@ export const checkPhoneSchema = z.object({
 export const verifyOtpSchema = z.object({
   phone: phoneField,
   code: z.string().min(4).max(6).regex(/^\d+$/, 'OTP code must be digits'),
+});
+
+export const otpLoginSchema = verifyOtpSchema.extend({
+  expectedRole: z.literal('doctor').optional(),
 });
 
 export const changePasswordSchema = z.object({
@@ -102,5 +108,6 @@ export const registerInstitutionSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type OtpLoginInput = z.infer<typeof otpLoginSchema>;
 export type RegisterDoctorInput = z.infer<typeof registerDoctorSchema>;
 export type RegisterInstitutionInput = z.infer<typeof registerInstitutionSchema>;

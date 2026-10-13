@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/doctor.dart';
 import '../data/repositories/repository_providers.dart';
@@ -69,6 +71,14 @@ class AuthNotifier extends Notifier<AuthState> {
           return;
         }
         offline = true;
+      }
+
+      // A generic OTP login could previously retain a patient token in the
+      // doctor app. Reject it at startup, before the user reaches the scanner.
+      if (_roleFromAccessToken(token) != 'doctor') {
+        await auth.logout();
+        state = const AuthState(status: AuthStatus.unauthenticated);
+        return;
       }
 
       Doctor? doctor;
@@ -156,6 +166,13 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _bootstrap() async {
     final auth = ref.read(authRepositoryProvider);
     final token = await auth.getToken();
+    if (_roleFromAccessToken(token) != 'doctor') {
+      await auth.logout();
+      throw const AuthFailure(
+        message:
+            'Ce compte n’est pas un compte médecin. Utilisez les identifiants créés pour le médecin.',
+      );
+    }
     Doctor? doctor;
     try {
       doctor = await ref.read(doctorRepositoryProvider).getProfile('');
@@ -180,6 +197,20 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void refreshDoctor(Doctor doctor) {
     state = state.copyWith(doctor: doctor);
+  }
+
+  String? _roleFromAccessToken(String? token) {
+    if (token == null) return null;
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      return payload is Map ? payload['role'] as String? : null;
+    } on FormatException {
+      return null;
+    }
   }
 }
 

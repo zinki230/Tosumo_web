@@ -1155,8 +1155,16 @@ class RemoteDoctorRepository
     final response = await _client.dio.post(
       DoctorApiEndpoints.login,
       data: isEmail
-          ? {'email': identifier, 'password': password}
-          : {'phone': identifier, 'password': password},
+          ? {
+              'email': identifier,
+              'password': password,
+              'expectedRole': 'doctor',
+            }
+          : {
+              'phone': identifier,
+              'password': password,
+              'expectedRole': 'doctor',
+            },
     );
     await _persistAuth(response.data as Map<String, dynamic>);
   }
@@ -1185,7 +1193,7 @@ class RemoteDoctorRepository
   Future<void> otpLogin(String phone, String code) async {
     final response = await _client.dio.post(
       DoctorApiEndpoints.otpLogin,
-      data: {'phone': phone, 'code': code},
+      data: {'phone': phone, 'code': code, 'expectedRole': 'doctor'},
     );
     await _persistAuth(response.data as Map<String, dynamic>);
   }
@@ -1260,6 +1268,13 @@ class RemoteDoctorRepository
 
   Future<void> _persistAuth(Map<String, dynamic> data) async {
     final user = data['user'] as Map<String, dynamic>?;
+    if (user?['role'] != 'doctor') {
+      await _storage.clearTokens();
+      throw const AuthFailure(
+        message:
+            'Ce compte n’est pas un compte médecin. Utilisez les identifiants créés pour le médecin.',
+      );
+    }
     final tokens = data['tokens'] as Map<String, dynamic>?;
     final accessToken =
         tokens?['accessToken'] as String? ?? data['accessToken'] as String?;

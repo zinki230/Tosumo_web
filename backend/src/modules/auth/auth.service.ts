@@ -2,9 +2,9 @@ import { AuthRepository } from './auth.repository';
 import { hashPassword, verifyPassword } from '@shared/utils/password';
 import { generateTokenPair, verifyRefreshToken } from '@shared/utils/jwt';
 import { JwtPayload } from '@shared/types';
-import { BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
+import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from '@shared/utils/errors';
 import { sendVerificationEmail } from '@shared/services/email';
-import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInput } from './auth.validation';
+import { RegisterInput, LoginInput, OtpLoginInput, RegisterDoctorInput, RegisterInstitutionInput } from './auth.validation';
 import { OtpProvider, createOtpProvider } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
 import prisma from '@shared/database/prisma';
@@ -24,6 +24,14 @@ export class AuthService {
   private otpProvider: OtpProvider = createOtpProvider();
 
   private repository = new AuthRepository();
+
+  private ensureExpectedRole(role: string, expectedRole?: 'doctor') {
+    if (expectedRole && role !== expectedRole) {
+      throw new ForbiddenError(
+        'Ce compte n’est pas un compte médecin. Connectez-vous avec les identifiants créés pour le médecin.',
+      );
+    }
+  }
 
   async register(input: RegisterInput) {
     const phone = normalizeCameroonPhone(input.phone);
@@ -143,6 +151,8 @@ export class AuthService {
     if (!isValid) {
       throw new UnauthorizedError('Invalid credentials');
     }
+
+    this.ensureExpectedRole(user.role, input.expectedRole);
 
     // Build JWT payload with role-specific IDs
     const payload: JwtPayload = { 
@@ -298,7 +308,11 @@ export class AuthService {
    * password. The phone number must belong to a registered, active account —
    * unknown numbers are rejected and never auto-created.
    */
-  async otpLogin(phone: string, code: string) {
+  async otpLogin(
+    phone: string,
+    code: string,
+    expectedRole?: OtpLoginInput['expectedRole'],
+  ) {
     const normalized = normalizeCameroonPhone(phone) || phone;
     const valid = await this.otpProvider.verify(normalized, code);
     if (!valid) {
@@ -312,6 +326,8 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedError('Account is deactivated');
     }
+
+    this.ensureExpectedRole(user.role, expectedRole);
 
     await this.repository.setPhoneVerified(user.id);
 
