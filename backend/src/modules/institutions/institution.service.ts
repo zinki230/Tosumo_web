@@ -3,6 +3,7 @@ import { BadRequestError, NotFoundError, ConflictError, ForbiddenError } from '@
 import { hashPassword } from '@shared/utils/password';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
 import prisma from '@shared/database/prisma';
+import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
 function generateTemporaryPassword(): string {
@@ -67,10 +68,19 @@ export class InstitutionService {
       throw new BadRequestError('Invalid Cameroon phone number');
     }
 
+    const email = data.email?.trim().toLowerCase() || placeholderEmailForPhone(phone);
+
     // Check if phone already exists
     const existingUser = await prisma.user.findUnique({ where: { phone } });
     if (existingUser) {
       throw new ConflictError('This phone number is already registered');
+    }
+
+    // Email is unique in the shared User collection too. Check it before the
+    // transaction so the portal gets a useful 409 instead of an opaque 500.
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
+      throw new ConflictError('This email address is already registered');
     }
 
     // Check if license number already exists
@@ -85,45 +95,60 @@ export class InstitutionService {
     const temporaryPassword = generateTemporaryPassword();
     const passwordHash = await hashPassword(temporaryPassword);
 
-    const email = data.email?.trim() || placeholderEmailForPhone(phone);
-
     // Create user, doctor profile, and institution link in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create user
-      const user = await tx.user.create({
-        data: {
-          email,
-          phone,
-          passwordHash,
-          role: 'doctor',
-          isActive: true,
-        }
-      });
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email,
+            phone,
+            passwordHash,
+            role: 'doctor',
+            isActive: true,
+          }
+        });
 
-      // Create doctor profile
-      const doctor = await tx.doctor.create({
-        data: {
-          userId: user.id,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          specialty: data.specialty,
-          licenseNumber: data.licenseNumber,
-          isVerified: true, // Auto-verified since created by institution
-        }
-      });
+        const doctor = await tx.doctor.create({
+          data: {
+            userId: user.id,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            specialty: data.specialty,
+            licenseNumber: data.licenseNumber,
+            isVerified: true, // Auto-verified since created by institution
+          }
+        });
 
-      // Link doctor to institution
-      await tx.doctorInstitution.create({
-        data: {
-          doctorId: doctor.id,
-          institutionId: institutionId,
-          isPrimary: true,
-          role: 'attending'
-        }
-      });
+        await tx.doctorInstitution.create({
+          data: {
+            doctorId: doctor.id,
+            institutionId,
+            isPrimary: true,
+            role: 'attending'
+          }
+        });
 
-      return { user, doctor, temporaryPassword };
-    });
+        return { user, doctor, temporaryPassword };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = Array.isArray(error.meta?.target)
+          ? error.meta.target.join(',')
+          : String(error.meta?.target ?? '');
+        if (target.includes('email')) {
+          throw new ConflictError('This email address is already registered');
+        }
+        if (target.includes('phone')) {
+          throw new ConflictError('This phone number is already registered');
+        }
+        if (target.includes('licenseNumber')) {
+          throw new ConflictError('This license number is already registered');
+        }
+        throw new ConflictError('A doctor with these details is already registered');
+      }
+      throw error;
+    }
 
     return {
       doctor: {
