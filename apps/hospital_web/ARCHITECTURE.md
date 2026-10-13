@@ -2,7 +2,7 @@
 
 ## Applications et données
 
-Le portail web (Vercel), l’application patient et l’application médecin utilisent la même API de production : `https://tosumo-production.up.railway.app/api/v1`. Les identités et dossiers sont donc gérés par un backend et une base de données partagés. Les accès restent soumis aux rôles et autorisations de chaque compte.
+Le portail web (Vercel), l’application patient et l’application médecin utilisent la même API de production : `https://tosumo-web-backend-production.up.railway.app/api/v1`. Les identités et dossiers sont donc gérés par un backend et une base de données partagés. Les accès restent soumis aux rôles et autorisations de chaque compte.
 
 ```text
 Portail hospitalier ─┐
@@ -14,10 +14,10 @@ Application médecin ┘
 
 - Frontend : Vite, démarré depuis `apps/hospital_web` avec `npm run dev`.
 - API : backend partagé du dépôt, démarré depuis `backend`.
-- URL API locale : `http://localhost:3000/api/v1`.
-- URL API de production : `https://tosumo-production.up.railway.app/api/v1`.
+- URL API locale : `http://localhost:4000/api/v1`.
+- URL API de production : `https://tosumo-web-backend-production.up.railway.app/api/v1`.
 
-La variable `VITE_API_BASE_URL` configure l’URL utilisée par le frontend. Le fichier `.env.production` contient l’URL de production partagée.
+La variable `VITE_API_BASE_URL` configure l’URL utilisée par le portail. Le fichier `.env.production` et la variable Vercel Production doivent contenir l’URL de production partagée.
 
 ## Parcours principaux
 

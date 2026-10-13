@@ -17,7 +17,7 @@ TOSUMO est une plateforme de gestion hospitalière moderne permettant aux centre
 1. **Connectez votre repo GitHub à Vercel**
 2. **Configurez les variables d'environnement sur Vercel** :
    ```
-   VITE_API_BASE_URL=https://tosumo-production.up.railway.app/api/v1
+   VITE_API_BASE_URL=https://tosumo-web-backend-production.up.railway.app/api/v1
    ```
 3. **Déployez automatiquement**
 

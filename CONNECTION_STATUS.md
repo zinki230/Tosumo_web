@@ -26,7 +26,7 @@ Apps Flutter (Patient & Doctor)
         │  HTTPS
         ▼
   Backend Node.js (Railway)
-  https://tosumo-production.up.railway.app
+  https://tosumo-web-backend-production.up.railway.app
         │
         │  mongodb+srv://
         ▼
@@ -52,8 +52,8 @@ au **backend REST** via HTTPS. C'est le backend qui accède à MongoDB Atlas.
 - [x] Connexion Prisma → Atlas confirmée
 
 ### Apps Flutter
-- [x] Patient app → pointe vers `https://tosumo-production.up.railway.app`
-- [x] Doctor app → pointe vers `https://tosumo-production.up.railway.app`
+- [x] Patient app → pointe vers `https://tosumo-web-backend-production.up.railway.app`
+- [x] Doctor app → pointe vers `https://tosumo-web-backend-production.up.railway.app`
 - [x] En debug Android → utilise Railway (pas localhost)
 - [x] Override possible : `--dart-define=API_BASE_URL=http://10.0.2.2:3000`
 

@@ -39,18 +39,18 @@ class AppEnvironment {
 
   static String get _apiBaseUrl {
     if (_definedApiBaseUrl.isNotEmpty) return _definedApiBaseUrl;
-    if (kIsWeb) return 'https://tosumo-production.up.railway.app';
+    if (kIsWeb) return 'https://tosumo-web-backend-production.up.railway.app';
     if (kDebugMode) {
       // A physical Android device cannot reach the emulator loopback
       // (10.0.2.2), so default debug Android traffic to the deployed Railway
       // backend. For local emulator development, override explicitly with
       // --dart-define=API_BASE_URL=http://10.0.2.2:3000.
       if (defaultTargetPlatform == TargetPlatform.android) {
-        return 'https://tosumo-production.up.railway.app';
+        return 'https://tosumo-web-backend-production.up.railway.app';
       }
       return 'http://localhost:3000';
     }
-    return 'https://tosumo-production.up.railway.app';
+    return 'https://tosumo-web-backend-production.up.railway.app';
   }
 
   static final AppEnvironment current = AppEnvironment(

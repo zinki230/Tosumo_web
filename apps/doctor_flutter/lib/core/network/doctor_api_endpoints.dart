@@ -7,7 +7,7 @@ class DoctorApiEndpoints {
     // Default to the live backend (seeded with demo doctors) so the app works
     // out of the box. Override with --dart-define=API_BASE_URL=<url> for local
     // development (e.g. http://localhost:3000).
-    return 'https://tosumo-production.up.railway.app';
+    return 'https://tosumo-web-backend-production.up.railway.app';
   }
 
   /// Demo mode is used until a real SMS provider is wired up. In demo mode no

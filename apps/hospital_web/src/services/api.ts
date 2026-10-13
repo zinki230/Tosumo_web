@@ -2,18 +2,16 @@ import axios from 'axios'
 
 // ── Configuration de l'URL API ──────────────────────────────────────────────
 const getApiBaseUrl = (): string => {
-  // En production, utiliser les variables d'environnement Vite
+  // Respecter la configuration d'API du déploiement Vercel ou du build local.
   if (import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL
   }
-  
-  // Fallback pour le développement local avec le nouveau backend web
+
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return 'http://localhost:4000/api/v1'
   }
-  
-  // Keep the hospital portal on the same API and database as both mobile apps.
-  return 'https://tosumo-production.up.railway.app/api/v1'
+
+  return 'https://tosumo-web-backend-production.up.railway.app/api/v1'
 }
 
 // ── Base client ──────────────────────────────────────────────────────────────

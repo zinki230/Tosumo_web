@@ -3,6 +3,10 @@
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://tosumo-web-backend-production.up.railway.app/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
