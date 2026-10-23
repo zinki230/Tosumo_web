@@ -1,17 +1,16 @@
 import axios from 'axios'
 
 // ── Configuration de l'URL API ──────────────────────────────────────────────
+const PRODUCTION_API_BASE_URL = 'https://tosumo-web-backend-production.up.railway.app/api/v1'
+
 const getApiBaseUrl = (): string => {
-  // Respecter la configuration d'API du déploiement Vercel ou du build local.
-  if (import.meta.env?.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    // Keep the hospital portal on the shared production API, even if a Vercel
+    // project's stale VITE_API_BASE_URL points at another Railway service.
+    return PRODUCTION_API_BASE_URL
   }
 
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return 'http://localhost:4000/api/v1'
-  }
-
-  return 'https://tosumo-web-backend-production.up.railway.app/api/v1'
+  return import.meta.env?.VITE_API_BASE_URL ?? 'http://localhost:4000/api/v1'
 }
 
 // ── Base client ──────────────────────────────────────────────────────────────
