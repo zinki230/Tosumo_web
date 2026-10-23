@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GitBranch, ChevronDown, Calendar, RefreshCw } from 'lucide-react'
-import { trackingApi, type TrackingEntry } from '../services/api'
+import { getApiErrorMessage, trackingApi, type TrackingEntry } from '../services/api'
 import {
   PageHeader,
   PageLoader,
@@ -35,8 +35,8 @@ export default function TrackingPage() {
     try {
       const data = await trackingApi.getAll()
       setEntries(data)
-    } catch {
-      setError('Impossible de charger les données de suivi.')
+    } catch (loadError: unknown) {
+      setError(getApiErrorMessage(loadError, 'Impossible de charger les données de suivi.'))
     } finally {
       setLoading(false)
     }

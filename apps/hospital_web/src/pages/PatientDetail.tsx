@@ -29,7 +29,7 @@ export default function PatientDetail() {
         const [p, appts, tracking] = await Promise.all([
           patientsApi.getById(id),
           patientsApi.getAppointments(id).catch(() => [] as Appointment[]),
-          trackingApi.getAll(),
+          trackingApi.getAll().catch(() => [] as TrackingEntry[]),
         ])
         setPatient(p)
         setAppointments(

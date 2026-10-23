@@ -30,7 +30,7 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
+    if (err.response?.status === 401) {
       localStorage.removeItem('tosumo_token')
       localStorage.removeItem('tosumo_user')
       window.location.href = '/login'
@@ -38,6 +38,16 @@ client.interceptors.response.use(
     return Promise.reject(err)
   },
 )
+
+/** Return a useful API error message without hiding the server's explanation. */
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError<{ message?: string }>(error)) {
+    const message = error.response?.data?.message
+    if (message) return message
+    if (error.code === 'ERR_NETWORK') return 'Impossible de joindre le serveur. Vérifiez votre connexion.'
+  }
+  return fallback
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface Doctor {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, ChevronDown } from 'lucide-react'
-import { patientsApi, trackingApi, type Patient } from '../services/api'
+import { getApiErrorMessage, patientsApi, trackingApi, type Patient } from '../services/api'
 import {
   PageHeader,
   PageLoader,
@@ -26,6 +26,7 @@ export default function PatientsList() {
   const [rows, setRows] = useState<PatientRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [trackingWarning, setTrackingWarning] = useState('')
   const [search, setSearch] = useState('')
   const [filterVerified, setFilterVerified] = useState('')
   const [filterDoctor, setFilterDoctor] = useState('')
@@ -33,10 +34,20 @@ export default function PatientsList() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [patients, tracking] = await Promise.all([
+        const [patients, trackingResult] = await Promise.all([
           patientsApi.list({ limit: 500 }),
-          trackingApi.getAll(),
+          trackingApi.getAll()
+            .then((tracking) => ({ tracking }))
+            .catch((trackingError: unknown) => ({ trackingError })),
         ])
+        const tracking = 'tracking' in trackingResult ? trackingResult.tracking : []
+
+        if ('trackingError' in trackingResult) {
+          setTrackingWarning(getApiErrorMessage(
+            trackingResult.trackingError,
+            'Le suivi des rendez-vous est indisponible. Les patients restent affichés.',
+          ))
+        }
 
         // For each patient, pick their "main" doctor (most appointments)
         const doctorForPatient = new Map<string, {
@@ -73,8 +84,8 @@ export default function PatientsList() {
             }
           }),
         )
-      } catch {
-        setError('Impossible de charger la liste des patients.')
+      } catch (loadError: unknown) {
+        setError(getApiErrorMessage(loadError, 'Impossible de charger la liste des patients.'))
       } finally {
         setLoading(false)
       }
@@ -116,6 +127,9 @@ export default function PatientsList() {
       />
 
       {error && <div className="mb-4"><ErrorBanner message={error} /></div>}
+      {trackingWarning && !error && (
+        <div className="mb-4"><ErrorBanner message={`Liste chargée, mais suivi incomplet : ${trackingWarning}`} /></div>
+      )}
 
       {/* Filters */}
       <div className="card p-4 mb-5 flex flex-wrap gap-3 items-center">
