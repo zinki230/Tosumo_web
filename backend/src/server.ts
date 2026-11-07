@@ -3,18 +3,11 @@ import http from 'http';
 import app from './app';
 import { config, validateEnvironment } from '@shared/config';
 import { initializeSocket } from '@shared/socket';
-import { ensureDatabaseIndexes } from '@shared/database/indexes';
 
 const server = http.createServer(app);
 
 // Initialize Socket.IO
 initializeSocket(server);
-
-// Apply database unique indexes (User.phone / User.email) before serving
-// traffic so uniqueness is enforced at the storage layer, not just in code.
-ensureDatabaseIndexes().catch((error) => {
-  console.warn('Database index setup failed:', error);
-});
 
 server.listen(config.port, config.host, () => {
   const { warnings } = validateEnvironment();

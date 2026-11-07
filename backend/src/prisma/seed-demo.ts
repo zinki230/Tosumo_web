@@ -1,14 +1,12 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import { IDS, oid } from './demo-ids';
 
 dotenv.config();
 
-// The backend resolves the DB URL from MONGODB_URI (config/index.ts), so the demo
-// data must land in the exact same MongoDB the API serves.
 const databaseUrl =
-  process.env.MONGODB_URI || process.env.DATABASE_URL || 'mongodb://localhost:27017/tosumo';
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tosumo?schema=public';
 
 const prisma = new PrismaClient({
   datasources: { db: { url: databaseUrl } },
@@ -489,7 +487,7 @@ async function main() {
           chiefComplaint: c.chiefComplaint,
           diagnosis: c.diagnosis,
           notes: c.notes ?? null,
-          vitalSigns: c.vitalSigns ?? null,
+          vitalSigns: c.vitalSigns ?? Prisma.DbNull,
           consultationDate: new Date(daysAgo(c.daysAgo)),
         },
       });

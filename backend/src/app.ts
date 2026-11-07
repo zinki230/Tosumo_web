@@ -89,7 +89,7 @@ app.get('/health', (_req, res) => {
 
 app.get('/health/ready', async (_req, res) => {
   try {
-    await prisma.$runCommandRaw({ ping: 1 });
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: 'ok', service: 'tosumo-backend', database: 'connected' });
   } catch {
     res.status(503).json({ status: 'degraded', service: 'tosumo-backend', database: 'disconnected' });

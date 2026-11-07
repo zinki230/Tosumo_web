@@ -3,6 +3,8 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+# Prisma's postinstall hook loads this schema while npm ci installs dependencies.
+COPY src/prisma/ ./src/prisma/
 RUN npm ci
 
 COPY tsconfig.json ./
@@ -21,6 +23,7 @@ RUN adduser --system --uid 1001 express
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/prisma ./src/prisma
+COPY --from=builder /app/prisma ./prisma
 COPY package.json ./
 
 RUN mkdir -p /app/uploads && chown -R express:nodejs /app/uploads
@@ -31,4 +34,4 @@ EXPOSE 3000
 
 ENV NODE_ENV=production
 
-CMD ["sh", "-c", "npm run seed:demo && node dist/server.js"]
+CMD ["sh", "-c", "npm run prisma:migrate && npm run seed:demo && node dist/server.js"]

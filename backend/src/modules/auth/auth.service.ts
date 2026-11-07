@@ -5,7 +5,7 @@ import { JwtPayload } from '@shared/types';
 import { BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
 import { sendVerificationEmail } from '@shared/services/email';
 import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInput } from './auth.validation';
-import { OtpProvider, createOtpProvider } from './otp.provider';
+import { OtpProvider, createOtpProvider, generateOtp } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
 import prisma from '@shared/database/prisma';
 
@@ -45,6 +45,10 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(input.password);
+    const phoneVerification = await prisma.phoneOtp.findUnique({
+      where: { phone_operation: { phone, operation: 'phone_verification' } },
+      select: { verifiedAt: true },
+    });
 
     let user;
     try {
@@ -55,6 +59,7 @@ export class AuthService {
             phone,
             passwordHash,
             role: input.role,
+            isPhoneVerified: Boolean(phoneVerification?.verifiedAt),
           },
         });
 
@@ -267,19 +272,22 @@ export class AuthService {
   }
 
   async sendOtp(phone: string) {
-    const normalized = normalizeCameroonPhone(phone) || phone;
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const normalized = normalizeCameroonPhone(phone);
+    if (!normalized) throw new BadRequestError('Invalid Cameroon phone number');
+    const code = generateOtp();
     await this.otpProvider.send(normalized, code);
 
     return {
       message: 'OTP sent successfully',
-      expiresIn: 600,
+      expiresIn: 300,
+      resendAfter: 60,
       mode: this.otpProvider.mode,
     };
   }
 
   async verifyOtp(phone: string, code: string) {
-    const normalized = normalizeCameroonPhone(phone) || phone;
+    const normalized = normalizeCameroonPhone(phone);
+    if (!normalized) throw new BadRequestError('Invalid Cameroon phone number');
     const valid = await this.otpProvider.verify(normalized, code);
     if (!valid) {
       throw new BadRequestError('Invalid or expired OTP code');
@@ -299,7 +307,8 @@ export class AuthService {
    * unknown numbers are rejected and never auto-created.
    */
   async otpLogin(phone: string, code: string) {
-    const normalized = normalizeCameroonPhone(phone) || phone;
+    const normalized = normalizeCameroonPhone(phone);
+    if (!normalized) throw new BadRequestError('Invalid Cameroon phone number');
     const valid = await this.otpProvider.verify(normalized, code);
     if (!valid) {
       throw new BadRequestError('Invalid or expired OTP code');
@@ -330,7 +339,7 @@ export class AuthService {
         phone: user.phone,
         role: user.role,
         isEmailVerified: user.isEmailVerified,
-        isPhoneVerified: user.isPhoneVerified,
+        isPhoneVerified: true,
       },
       tokens,
       mode: this.otpProvider.mode,
@@ -338,7 +347,8 @@ export class AuthService {
   }
 
   async resetPassword(phone: string, code: string, newPassword: string) {
-    const normalized = normalizeCameroonPhone(phone) || phone;
+    const normalized = normalizeCameroonPhone(phone);
+    if (!normalized) throw new BadRequestError('Invalid Cameroon phone number');
     const valid = await this.otpProvider.verify(normalized, code);
     if (!valid) {
       throw new BadRequestError('Invalid or expired OTP code');

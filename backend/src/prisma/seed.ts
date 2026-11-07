@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const databaseUrl = process.env.MONGODB_URI || process.env.DATABASE_URL || 'mongodb://localhost:27017/tosumo';
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tosumo?schema=public';
 
 const prisma = new PrismaClient({
   datasources: { db: { url: databaseUrl } },

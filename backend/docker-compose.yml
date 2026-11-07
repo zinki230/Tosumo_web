@@ -1,20 +1,18 @@
-version: '3.8'
-
 services:
-  mongodb:
-    image: mongo:7
-    container_name: tosumo-mongodb
+  postgres:
+    image: postgres:16
+    container_name: tosumo-postgres
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: tosumo
-      MONGO_INITDB_ROOT_PASSWORD: tosumo_secret
-      MONGO_INITDB_DATABASE: tosumo
+      POSTGRES_USER: tosumo
+      POSTGRES_PASSWORD: tosumo_secret
+      POSTGRES_DB: tosumo
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongodb_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      test: ["CMD-SHELL", "pg_isready -U tosumo -d tosumo"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,15 +27,16 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: mongodb://tosumo:tosumo_secret@mongodb:27017/tosumo?authSource=admin
+      DATABASE_URL: postgresql://tosumo:tosumo_secret@postgres:5432/tosumo?schema=public
+      DIRECT_URL: postgresql://tosumo:tosumo_secret@postgres:5432/tosumo?schema=public
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
-      mongodb:
+      postgres:
         condition: service_healthy
 
 volumes:
-  mongodb_data:
+  postgres_data:
   uploads_data:

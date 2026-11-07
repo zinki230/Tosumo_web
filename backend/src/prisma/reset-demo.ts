@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const databaseUrl =
-  process.env.MONGODB_URI || process.env.DATABASE_URL || 'mongodb://localhost:27017/tosumo';
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tosumo?schema=public';
 
 const prisma = new PrismaClient({
   datasources: { db: { url: databaseUrl } },

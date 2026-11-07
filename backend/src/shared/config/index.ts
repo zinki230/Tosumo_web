@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const databaseUrl = process.env.MONGODB_URI || process.env.DATABASE_URL || '';
-process.env.DATABASE_URL = databaseUrl;
+const databaseUrl = process.env.DATABASE_URL || '';
 
 // Secret used to sign patient medical-card QR tokens. Falls back to the JWT
 // access secret so it works out of the box; override with QR_TOKEN_SECRET in
@@ -51,18 +50,13 @@ export const config = {
   },
 
   sms: {
-    apiKey: process.env.SMS_API_KEY || '',
-    username: process.env.SMS_USERNAME || '',
+    orangeClientId: process.env.ORANGE_SMS_CLIENT_ID || '',
+    orangeClientSecret: process.env.ORANGE_SMS_CLIENT_SECRET || '',
+    orangeSenderAddress: process.env.ORANGE_SMS_SENDER_ADDRESS || 'tel:+2370000',
+    otpHashSecret: process.env.OTP_HASH_SECRET || '',
   },
 
-  // OTP delivery mode.
-  // - 'demo': no external SMS, any 6-digit code is accepted (prototype / investor demo).
-  // - 'provider': real SMS delivery through the configured provider; requires
-  //   SMS_API_KEY / SMS_USERNAME. Defaults to 'demo' for safety.
-  otpMode: (process.env.OTP_MODE || 'demo') as 'demo' | 'provider',
-
   demo: {
-    otp: process.env.DEMO_OTP || '123456',
     patientPhone: process.env.DEMO_PATIENT_PHONE || '+237691234567',
     patientPassword: process.env.DEMO_PATIENT_PASSWORD || 'Asonte@6900',
     patientEmail: process.env.DEMO_PATIENT_EMAIL || 'demo@tosumo.cm',
@@ -123,16 +117,8 @@ export function validateEnvironment(): { warnings: string[] } {
   }
 
   // Demo-mode notices for optional external integrations.
-  const smsConfigured =
-    config.sms.apiKey && config.sms.username &&
-    !isPlaceholder(config.sms.username, ['your-']) &&
-    config.sms.apiKey !== 'your-africastalking-api-key';
-  if (config.otpMode === 'provider' && !smsConfigured) {
-    warnings.push(
-      'OTP_MODE=provider but SMS provider not configured — OTP will fall back to DEMO mode'
-    );
-  } else if (!smsConfigured) {
-    warnings.push('SMS provider not configured — OTP in DEMO mode');
+  if (!config.sms.orangeClientId || !config.sms.orangeClientSecret || !config.sms.otpHashSecret) {
+    warnings.push('Orange SMS / OTP secrets are missing — phone verification cannot send OTPs');
   }
   if (!config.payment.provider || config.payment.provider === 'mock') {
     warnings.push('Payment provider not configured — running with MOCK payments');

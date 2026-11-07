@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { authenticate } from '@shared/middleware/auth';
-import { authLimiter } from '@shared/middleware/rateLimiter';
+import { authLimiter, otpSendLimiter } from '@shared/middleware/rateLimiter';
 
 const router = Router();
 const controller = new AuthController();
@@ -17,8 +17,9 @@ router.get('/profile', authenticate, controller.getProfile);
 router.put('/change-password', authenticate, controller.changePassword);
 router.put('/fcm-token', authenticate, controller.updateFcmToken);
 router.post('/check-phone', authLimiter, controller.checkPhone);
-router.post('/send-otp', controller.sendOtp);
-router.post('/verify-otp', controller.verifyOtp);
+router.post('/send-otp', authLimiter, otpSendLimiter, controller.sendOtp);
+router.post('/resend-otp', authLimiter, otpSendLimiter, controller.sendOtp);
+router.post('/verify-otp', authLimiter, controller.verifyOtp);
 router.post('/reset-password', controller.resetPassword);
 
 export default router;

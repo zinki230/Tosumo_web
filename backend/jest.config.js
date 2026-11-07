@@ -8,7 +8,7 @@ module.exports = {
     '^@modules/(.*)$': '<rootDir>/src/modules/$1',
     '^@shared/(.*)$': '<rootDir>/src/shared/$1',
   },
-  setupFiles: [],
+  setupFiles: ['<rootDir>/tests/setup-env.ts'],
   clearMocks: true,
   testTimeout: 30000,
   collectCoverageFrom: [

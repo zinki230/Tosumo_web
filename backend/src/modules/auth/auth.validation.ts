@@ -44,7 +44,7 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   phone: phoneField,
-  code: z.string().min(4).max(6).regex(/^\d+$/, 'OTP code must be digits'),
+  code: z.string().length(6).regex(/^\d{6}$/, 'OTP code must be exactly 6 digits'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
@@ -61,7 +61,7 @@ export const checkPhoneSchema = z.object({
 
 export const verifyOtpSchema = z.object({
   phone: phoneField,
-  code: z.string().min(4).max(6).regex(/^\d+$/, 'OTP code must be digits'),
+  code: z.string().length(6).regex(/^\d{6}$/, 'OTP code must be exactly 6 digits'),
 });
 
 export const changePasswordSchema = z.object({

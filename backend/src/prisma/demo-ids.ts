@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 
 /**
- * Deterministic, stable 24-char hex ObjectId for a given seed.
+ * Deterministic, stable string ID for a given seed.
  * Used so the demo seeder can upsert using fixed ids (idempotent).
  */
 export function oid(seed: string): string {

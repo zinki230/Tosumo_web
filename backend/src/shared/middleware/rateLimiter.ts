@@ -31,3 +31,12 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const otpSendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isDev() ? 100 : 10,
+  skip: isTest,
+  message: { success: false, message: 'Trop de demandes de code. Réessayez plus tard.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

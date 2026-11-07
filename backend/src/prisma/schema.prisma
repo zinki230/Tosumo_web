@@ -1,11 +1,11 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["mongoDb"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================================
@@ -13,7 +13,7 @@ datasource db {
 // ============================================================
 
 model User {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  id             String   @id @default(cuid())
   email          String   @unique
   phone          String   @unique
   passwordHash   String
@@ -43,8 +43,8 @@ model User {
 }
 
 model Device {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String
   platform  String   // ios | android | web
   deviceId  String
   fcmToken  String?
@@ -55,13 +55,29 @@ model Device {
   user User @relation(fields: [userId], references: [id])
 }
 
+// One active phone-verification OTP per phone and operation. The code itself
+// is never stored; otpHash is an HMAC generated with the server-only secret.
+model PhoneOtp {
+  id          String   @id @default(cuid())
+  phone       String
+  operation   String   @default("phone_verification")
+  otpHash     String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  verifiedAt  DateTime?
+
+  @@unique([phone, operation])
+  @@index([expiresAt])
+}
+
 // ============================================================
 // PATIENTS
 // ============================================================
 
 model Patient {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String?  @unique @db.ObjectId
+  id             String   @id @default(cuid())
+  userId         String?  @unique
   nin            String?  @unique
   firstName      String?
   lastName       String?
@@ -113,8 +129,8 @@ model Patient {
 }
 
 model MedicalCard {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId   String   @unique @db.ObjectId
+  id          String   @id @default(cuid())
+  patientId   String   @unique
   cardNumber  String   @unique
   issueDate   DateTime @default(now())
   expiryDate  DateTime?
@@ -132,8 +148,8 @@ model MedicalCard {
 }
 
 model MedicalBooklet {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId   String   @db.ObjectId
+  id          String   @id @default(cuid())
+  patientId   String
   title       String
   description String?
   fileUrl     String?
@@ -152,8 +168,8 @@ model MedicalBooklet {
 }
 
 model EmergencyInfo {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId   String   @db.ObjectId
+  id          String   @id @default(cuid())
+  patientId   String
   fullName    String
   phone       String
   relationship String  // spouse | parent | sibling | friend | other
@@ -168,8 +184,8 @@ model EmergencyInfo {
 }
 
 model JourneyEntry {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId   String   @db.ObjectId
+  id          String   @id @default(cuid())
+  patientId   String
   title       String
   description String?
   entryType   String   // appointment | consultation | lab | imaging | prescription | hospitalization | note
@@ -192,8 +208,8 @@ model JourneyEntry {
 // ============================================================
 
 model Doctor {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId              String   @unique @db.ObjectId
+  id                  String   @id @default(cuid())
+  userId              String   @unique
   title               String?  // Dr. | Prof. | etc.
   firstName           String
   lastName            String
@@ -238,8 +254,8 @@ model Doctor {
 }
 
 model DoctorAvailability {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  doctorId    String   @db.ObjectId
+  id          String   @id @default(cuid())
+  doctorId    String
   dayOfWeek   Int      // 0=Sun, 1=Mon, ..., 6=Sat
   startTime   String   // HH:mm
   endTime     String   // HH:mm
@@ -252,8 +268,8 @@ model DoctorAvailability {
 }
 
 model WorkingHours {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  doctorId    String   @db.ObjectId
+  id          String   @id @default(cuid())
+  doctorId    String
   date        DateTime
   startTime   String   // HH:mm
   endTime     String   // HH:mm
@@ -266,9 +282,9 @@ model WorkingHours {
 }
 
 model DoctorInstitution {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  doctorId      String   @db.ObjectId
-  institutionId String   @db.ObjectId
+  id            String   @id @default(cuid())
+  doctorId      String
+  institutionId String
   role          String?  // attending | consulting | head
   isPrimary     Boolean  @default(false)
   createdAt     DateTime @default(now())
@@ -279,9 +295,9 @@ model DoctorInstitution {
 }
 
 model DoctorReview {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  doctorId  String   @db.ObjectId
-  patientId String   @db.ObjectId
+  id        String   @id @default(cuid())
+  doctorId  String
+  patientId String
   rating    Int      // 1-5
   comment   String?
   createdAt DateTime @default(now())
@@ -297,7 +313,7 @@ model DoctorReview {
 // ============================================================
 
 model Institution {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String   @id @default(cuid())
   name            String
   type            String   // hospital | clinic | pharmacy | lab
   phone           String?
@@ -314,7 +330,7 @@ model Institution {
   deletedAt       DateTime?
   version         Int      @default(1)
   syncVersion     Int      @default(1)
-  createdByUserId String?  @db.ObjectId
+  createdByUserId String?
 
   createdBy       User?    @relation("CreatedInstitutions", fields: [createdByUserId], references: [id])
   doctors         DoctorInstitution[]
@@ -327,10 +343,10 @@ model Institution {
 // ============================================================
 
 model Appointment {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId       String   @db.ObjectId
-  doctorId        String   @db.ObjectId
-  institutionId   String?  @db.ObjectId
+  id              String   @id @default(cuid())
+  patientId       String
+  doctorId        String
+  institutionId   String?
   appointmentDate DateTime
   startTime       String   // HH:mm
   endTime         String   // HH:mm
@@ -359,10 +375,10 @@ model Appointment {
 }
 
 model Visit {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  medicalCardId  String   @db.ObjectId
-  appointmentId  String?  @db.ObjectId
-  institutionId  String?  @db.ObjectId
+  id             String   @id @default(cuid())
+  medicalCardId  String
+  appointmentId  String?
+  institutionId  String?
   visitDate      DateTime @default(now())
   diagnosis      String?
   symptoms       String[]
@@ -380,10 +396,10 @@ model Visit {
 // ============================================================
 
 model Consultation {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId       String   @db.ObjectId
-  doctorId        String   @db.ObjectId
-  appointmentId   String?  @db.ObjectId
+  id              String   @id @default(cuid())
+  patientId       String
+  doctorId        String
+  appointmentId   String?
   chiefComplaint  String
   historyOfPresentIllness String?
   diagnosis       String?
@@ -406,9 +422,9 @@ model Consultation {
 }
 
 model LabResult {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId       String   @db.ObjectId
-  doctorId        String   @db.ObjectId
+  id              String   @id @default(cuid())
+  patientId       String
+  doctorId        String
   testName        String
   testCategory    String   // blood | urine | stool | imaging | microbiology | pathology
   resultData      Json?
@@ -432,9 +448,9 @@ model LabResult {
 }
 
 model ImagingResult {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId       String   @db.ObjectId
-  doctorId        String   @db.ObjectId
+  id              String   @id @default(cuid())
+  patientId       String
+  doctorId        String
   imagingType     String   // xray | mri | ct_scan | ultrasound | mammogram | other
   bodyPart        String?
   imageUrls       String[]
@@ -458,10 +474,10 @@ model ImagingResult {
 }
 
 model Prescription {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId       String   @db.ObjectId
-  doctorId        String   @db.ObjectId
-  consultationId  String?  @db.ObjectId
+  id              String   @id @default(cuid())
+  patientId       String
+  doctorId        String
+  consultationId  String?
   medicationName  String
   dosage          String
   frequency       String   // daily | twice_daily | thrice_daily | weekly | as_needed
@@ -496,7 +512,7 @@ model Prescription {
 // ============================================================
 
 model Chat {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   isGroup   Boolean  @default(false)
   name      String?  // for group chats
   createdAt DateTime @default(now())
@@ -510,10 +526,10 @@ model Chat {
 }
 
 model ChatParticipant {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  chatId    String   @db.ObjectId
-  doctorId  String?  @db.ObjectId
-  patientId String?  @db.ObjectId
+  id        String   @id @default(cuid())
+  chatId    String
+  doctorId  String?
+  patientId String?
   lastReadAt DateTime?
   isMuted   Boolean  @default(false)
   joinedAt  DateTime @default(now())
@@ -528,9 +544,9 @@ model ChatParticipant {
 }
 
 model ChatMessage {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  chatId     String   @db.ObjectId
-  senderId   String   @db.ObjectId
+  id         String   @id @default(cuid())
+  chatId     String
+  senderId   String
   senderRole String   // patient | doctor | system
   content    String?
   messageType String  // text | image | document | audio | video | system
@@ -541,7 +557,7 @@ model ChatMessage {
   readAt     DateTime?
   isEdited   Boolean  @default(false)
   editedAt   DateTime?
-  replyToId  String?  @db.ObjectId
+  replyToId  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   deletedAt  DateTime?
@@ -557,10 +573,10 @@ model ChatMessage {
 // ============================================================
 
 model AccessManagement {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId      String   @db.ObjectId
-  grantedToId    String   @db.ObjectId // User ID of doctor
-  grantedById    String?  @db.ObjectId // patient user who granted
+  id             String   @id @default(cuid())
+  patientId      String
+  grantedToId    String // User ID of doctor
+  grantedById    String? // patient user who granted
   accessLevel    String   // read | write | full
   accessType     String   // temporary | permanent
   startDate      DateTime @default(now())
@@ -570,7 +586,7 @@ model AccessManagement {
   reason         String?
   isEmergency    Boolean  @default(false)
   revokedAt      DateTime?
-  revokedById    String?  @db.ObjectId
+  revokedById    String?
   revokeReason   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -588,8 +604,8 @@ model AccessManagement {
 // ============================================================
 
 model Notification {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String
   title     String
   body      String
   type      String   // appointment | medical | emergency | system | message | access | payment
@@ -612,8 +628,8 @@ model Notification {
 // ============================================================
 
 model AuditLog {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String   @db.ObjectId
+  id         String   @id @default(cuid())
+  userId     String
   action     String   // create | read | update | delete | grant | revoke | login | logout
   entity     String   // e.g., appointment, medical_record, access
   entityId   String?  // ID of affected entity
@@ -635,9 +651,9 @@ model AuditLog {
 // ============================================================
 
 model EmergencySession {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId      String   @db.ObjectId
-  doctorId       String?  @db.ObjectId
+  id             String   @id @default(cuid())
+  patientId      String
+  doctorId       String?
   status         String   @default("incoming") // incoming | acknowledged | active | resolved | ended | void
   startedAt      DateTime @default(now())
   acknowledgedAt DateTime?
@@ -666,9 +682,9 @@ model EmergencySession {
 // ============================================================
 
 model PaymentTransaction {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String   @db.ObjectId
-  appointmentId   String?  @db.ObjectId
+  id              String   @id @default(cuid())
+  userId          String
+  appointmentId   String?
   amount          Float
   currency        String   @default("XAF")
   provider        String   // orange_money | mtn_mobile | card | cash
