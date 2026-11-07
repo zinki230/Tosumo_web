@@ -1,6 +1,7 @@
 FROM node:22-alpine AS builder
 
 WORKDIR /app
+RUN apk add --no-cache openssl
 
 COPY package.json package-lock.json ./
 # Prisma's postinstall hook loads this schema while npm ci installs dependencies.
@@ -16,6 +17,7 @@ RUN npm run build
 FROM node:22-alpine AS runner
 
 WORKDIR /app
+RUN apk add --no-cache openssl
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 express
@@ -25,7 +27,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/prisma ./src/prisma
 COPY package.json ./
 
-RUN mkdir -p /app/uploads && chown -R express:nodejs /app/uploads
+RUN mkdir -p /app/uploads && chown -R express:nodejs /app/uploads /app/node_modules
 
 USER express
 
