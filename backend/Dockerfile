@@ -23,7 +23,6 @@ RUN adduser --system --uid 1001 express
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/prisma ./src/prisma
-COPY --from=builder /app/prisma ./prisma
 COPY package.json ./
 
 RUN mkdir -p /app/uploads && chown -R express:nodejs /app/uploads
