@@ -1153,17 +1153,11 @@ class RemoteDoctorRepository
 
   @override
   Future<void> sendOtp(String phone) async {
-    if (DoctorApiEndpoints.isDemoMode) return;
     await _client.dio.post(DoctorApiEndpoints.sendOtp, data: {'phone': phone});
   }
 
   @override
   Future<bool> verifyOtp(String phone, String code) async {
-    if (DoctorApiEndpoints.isDemoMode) {
-      // No real SMS provider yet: accept the fixed demo code (or any code if
-      // running purely against the local mock backend).
-      return code == DoctorApiEndpoints.demoOtpCode || code.isNotEmpty;
-    }
     try {
       // NOTE: we intentionally discard the returned tokens so the doctor's
       // own session is never replaced by the patient's.

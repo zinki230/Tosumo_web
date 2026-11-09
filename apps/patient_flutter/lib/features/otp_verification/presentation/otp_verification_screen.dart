@@ -32,7 +32,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     (_) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(_digitCount, (_) => FocusNode());
-  int _timeLeft = 130;
+  int _timeLeft = 300;
+  int _resendLeft = 60;
   bool _loading = false;
   bool _verified = false;
   Timer? _timer;
@@ -62,13 +63,31 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timeLeft <= 0) {
+      if (_timeLeft <= 0 && _resendLeft <= 0) {
         timer.cancel();
       } else {
-        setState(() => _timeLeft--);
+        if (mounted) {
+          setState(() {
+            if (_timeLeft > 0) _timeLeft--;
+            if (_resendLeft > 0) _resendLeft--;
+          });
+        }
       }
     });
+  }
+
+  Future<void> _pasteOtp() async {
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
+    final digits = text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != _digitCount || !mounted) return;
+    setState(() {
+      for (var i = 0; i < _digitCount; i++) {
+        _controllers[i].text = digits[i];
+      }
+    });
+    _focusNodes.last.unfocus();
   }
 
   void _onDigitPressed(String digit) {
@@ -96,17 +115,27 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   String get _code => _controllers.map((c) => c.text).join();
   bool get _isComplete => _code.length == _digitCount && _code.characters.every((c) => c.isNotEmpty);
 
-  Future<void> _sendOtp() async {
+  Future<bool> _sendOtp() async {
     try {
       final apiClient = ref.read(apiClientProvider);
       await apiClient.post(ApiEndpoints.sendOtp, data: {'phone': _phone});
-    } catch (e) {
+      if (mounted) {
+        _timer?.cancel();
+        setState(() {
+          _timeLeft = 300;
+          _resendLeft = 60;
+        });
+        _startTimer();
+      }
+      return true;
+    } catch (_) {
       if (mounted) {
         final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(t?.t('otp.sendFailed') ?? '')),
         );
       }
+      return false;
     }
   }
 
@@ -157,10 +186,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   Future<void> _resendOtp() async {
-    _timer?.cancel();
-    setState(() => _timeLeft = 130);
-    _startTimer();
-    await _sendOtp();
+    if (!await _sendOtp() || !mounted) return;
+    for (final controller in _controllers) {
+      controller.clear();
+    }
   }
 
   @override
@@ -272,43 +301,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    AnimatedMount(
-                      animation: 'fadeInUp',
-                      delay: 150,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withAlpha(25),
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.warning.withAlpha(80)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              LucideIcons.flaskConical,
-                              size: 18,
-                              color: AppColors.warning,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                t?.t('otp.demoNotice') ?? '',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.foreground,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 24),
                     AnimatedMount(
                       animation: 'fadeInUp',
                       delay: 200,
-                      child: Row(
+                      child: GestureDetector(
+                        onLongPress: _pasteOtp,
+                        child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(_digitCount, (i) {
                           return Padding(
@@ -357,6 +356,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                             ),
                           );
                         }),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -373,7 +373,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '(${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')})',
+                            'Code : ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               color: _timeLeft <= 10
@@ -382,22 +382,16 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            t?.t('otp.resend') ?? '',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppColors.mutedForeground,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
                           GestureDetector(
-                            onTap: _timeLeft <= 0 ? _resendOtp : null,
+                            onTap: _resendLeft <= 0 && !_loading ? _resendOtp : null,
                             child: Text(
-                              t?.t('otp.clickHere') ?? '',
+                              _resendLeft > 0
+                                  ? 'Renvoyer dans ${_resendLeft}s'
+                                  : (t?.t('otp.clickHere') ?? 'Renvoyer'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: _timeLeft > 0
+                                color: _resendLeft > 0 || _loading
                                     ? AppColors.mutedForeground
                                     : AppColors.primary,
                               ),

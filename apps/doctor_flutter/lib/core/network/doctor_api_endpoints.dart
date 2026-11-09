@@ -10,17 +10,6 @@ class DoctorApiEndpoints {
     return 'https://tosumo-web-backend-production.up.railway.app';
   }
 
-  /// Demo mode is used until a real SMS provider is wired up. In demo mode no
-  /// real SMS is sent and a fixed code unlocks full access.
-  static bool get isDemoMode {
-    const demo = String.fromEnvironment('DEMO_MODE');
-    if (demo.isNotEmpty) return demo == 'true';
-    const fromEnv = String.fromEnvironment('API_BASE_URL');
-    return fromEnv.isEmpty;
-  }
-
-  static const String demoOtpCode = '123456';
-
   static const String auth = '/api/v1/auth';
   static const String login = '$auth/login';
   static const String register = '$auth/register';
@@ -28,6 +17,7 @@ class DoctorApiEndpoints {
   static const String refresh = '$auth/refresh';
   static const String logout = '$auth/logout';
   static const String sendOtp = '$auth/send-otp';
+  static const String resendOtp = '$auth/resend-otp';
   static const String verifyOtp = '$auth/verify-otp';
   static const String resetPassword = '$auth/reset-password';
   static const String changePassword = '$auth/change-password';

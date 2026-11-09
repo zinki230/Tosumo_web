@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -33,6 +34,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   int _countdown = 60;
   Timer? _timer;
   bool _canResend = false;
+  int _expiresIn = 300;
 
   @override
   void initState() {
@@ -63,13 +65,19 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void _startCountdown() {
     _canResend = false;
     _countdown = 60;
+    _expiresIn = 300;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_countdown <= 0) {
+      if (_expiresIn <= 0) {
         timer.cancel();
-        if (mounted) setState(() => _canResend = true);
       } else {
-        if (mounted) setState(() => _countdown--);
+        if (mounted) {
+          setState(() {
+            _expiresIn--;
+            if (_countdown > 0) _countdown--;
+            if (_countdown <= 0) _canResend = true;
+          });
+        }
       }
     });
   }
@@ -78,6 +86,18 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     if (value.isNotEmpty && index < 5) {
       _otpFocusNodes[index + 1].requestFocus();
     }
+  }
+
+  Future<void> _pasteOtp() async {
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
+    final digits = text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 6 || !mounted) return;
+    setState(() {
+      for (var i = 0; i < 6; i++) {
+        _otpControllers[i].text = digits[i];
+      }
+    });
+    _otpFocusNodes.last.unfocus();
   }
 
   Future<void> _sendOtp() async {
@@ -248,7 +268,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           const SizedBox(height: 16),
                         ],
                         if (_otpSent)
-                          Row(
+                          GestureDetector(
+                            onLongPress: _pasteOtp,
+                            child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: List.generate(6, (index) {
                               return SizedBox(
@@ -282,6 +304,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                 ),
                               );
                             }),
+                            ),
                           ),
                       ],
                     ),
@@ -315,6 +338,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                     onPressed: _otpSent ? _verifyOtp : _sendOtp,
                   ),
                   if (_otpSent) ...[
+                    Text(
+                      'Le code expire dans ${(_expiresIn ~/ 60).toString().padLeft(2, '0')}:${(_expiresIn % 60).toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                    ),
+                    const SizedBox(height: 8),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

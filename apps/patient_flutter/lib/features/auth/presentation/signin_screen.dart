@@ -29,9 +29,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   bool _otpStep = false;
   bool _loading = false;
   bool _otpVerified = false;
-  int _timeLeft = 130;
+  int _timeLeft = 300;
+  int _resendLeft = 60;
   Timer? _timer;
-  String _otpMode = '';
   String? _fieldError;
 
   @override
@@ -60,13 +60,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   void _startTimer() {
     _timer?.cancel();
-    _timeLeft = 130;
+    _timeLeft = 300;
+    _resendLeft = 60;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      if (_timeLeft <= 0) {
+      if (_timeLeft <= 0 && _resendLeft <= 0) {
         timer.cancel();
       } else {
-        setState(() => _timeLeft--);
+        setState(() {
+          if (_timeLeft > 0) _timeLeft--;
+          if (_resendLeft > 0) _resendLeft--;
+        });
       }
     });
   }
@@ -76,6 +80,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       setState(() => _fieldError = 'auth.invalidPhone');
       return;
     }
+    final isResend = _otpStep;
     setState(() {
       _loading = true;
       _fieldError = null;
@@ -96,10 +101,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
     setState(() {
       _loading = false;
-      _otpMode = mode;
       _otpStep = true;
       _fieldError = null;
     });
+    if (isResend) {
+      for (final controller in _otpControllers) {
+        controller.clear();
+      }
+    }
     _startTimer();
   }
 
@@ -315,7 +324,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Widget _buildOtpStep(BuildContext context, AppLocalization? t) {
     final minutes = _timeLeft ~/ 60;
     final seconds = _timeLeft % 60;
-    final isDemo = _otpMode.isEmpty || _otpMode == 'demo';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -354,31 +362,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          if (isDemo)
-            AnimatedMount(
-              animation: 'fadeInUp',
-              delay: 120,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withAlpha(25),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.warning.withAlpha(80)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.flaskConical, size: 18, color: AppColors.warning),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        t?.t('otp.demoNotice') ?? '',
-                        style: const TextStyle(fontSize: 12, color: AppColors.foreground),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           const SizedBox(height: 24),
           AnimatedMount(
             animation: 'fadeInUp',
@@ -440,26 +423,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '(${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')})',
+                  'Code : ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: _timeLeft <= 10 ? AppColors.destructive : AppColors.foreground,
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  t?.t('otp.resend') ?? '',
-                  style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-                ),
-                const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: (_timeLeft <= 0 && !_loading) ? _sendCode : null,
+                  onTap: (_resendLeft <= 0 && !_loading) ? _sendCode : null,
                   child: Text(
-                    t?.t('otp.clickHere') ?? '',
+                    _resendLeft > 0
+                        ? 'Renvoyer dans ${_resendLeft}s'
+                        : (t?.t('otp.clickHere') ?? 'Renvoyer'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: _timeLeft > 0 ? AppColors.mutedForeground : AppColors.primary,
+                      color: _resendLeft > 0 ? AppColors.mutedForeground : AppColors.primary,
                     ),
                   ),
                 ),

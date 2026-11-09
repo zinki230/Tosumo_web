@@ -42,7 +42,7 @@ class AuthService {
   }
 
   /// Requests a one-time code for the given phone number. Returns the OTP
-  /// mode reported by the backend so the UI can show the demo notice.
+  /// delivery mode reported by the backend.
   Future<String> sendOtp({required String phone}) async {
     final response = await _client.post(ApiEndpoints.sendOtp, data: {
       'phone': phone,
