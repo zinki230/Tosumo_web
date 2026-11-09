@@ -47,6 +47,10 @@ jobs:
         working-directory: ${{ matrix.directory }}
         run: flutter pub get
 
+      - name: Generate Dart model and serialization files
+        working-directory: ${{ matrix.directory }}
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Build release APK (retry transient Gradle download errors)
         working-directory: ${{ matrix.directory }}
         run: |
