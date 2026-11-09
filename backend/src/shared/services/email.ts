@@ -1,63 +1,52 @@
-import nodemailer from 'nodemailer';
 import { config } from '@shared/config';
 
-let transporter: nodemailer.Transporter | null = null;
+type EmailParams = { to: string; subject: string; html: string; text?: string };
 
-/// True when an SMTP server is actually configured. When false, email is
-/// treated as an optional/disconnected integration and we never attempt a TCP
-/// connection (which would otherwise hit 127.0.0.1:587 in production and spam
-/// ECONNREFUSED). Registration and verification must not block on email.
-function isEmailConfigured(): boolean {
-  return (
-    config.email.host.trim().length > 0 &&
-    config.email.user.trim().length > 0 &&
-    config.email.pass.trim().length > 0
-  );
-}
-
-function getTransporter(): nodemailer.Transporter {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: config.email.host,
-      port: config.email.port,
-      secure: config.email.port === 465,
-      auth: {
-        user: config.email.user,
-        pass: config.email.pass,
-      },
-    });
+async function sendResendEmail(params: EmailParams): Promise<void> {
+  if (!config.email.resendApiKey) throw new Error('RESEND_API_KEY is not configured.');
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.email.resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: config.email.from,
+      to: [params.to],
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) {
+    // Do not log the provider response body; it can include recipient data.
+    console.error('[email] Resend request failed', { status: response.status });
+    throw new Error(`Resend email request failed (${response.status}).`);
   }
-  return transporter;
 }
 
-export async function sendEmail(params: {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-}): Promise<void> {
+export async function sendEmail(params: EmailParams): Promise<void> {
   if (process.env.NODE_ENV === 'test') return;
-
-  // Optional integration: never block the caller (or registration) on email.
-  if (!isEmailConfigured()) {
-    console.warn(
-      '[email] SMTP provider not configured — skipping outbound email (non-blocking). ' +
-        'Set EMAIL_HOST/EMAIL_USER/EMAIL_PASS to enable verification & password-reset emails.',
-    );
+  if (!config.email.resendApiKey) {
+    console.warn('[email] RESEND_API_KEY is missing; skipping non-critical email.');
     return;
   }
-
   try {
-    await getTransporter().sendMail({
-      from: config.email.from,
-      to: params.to,
-      subject: params.subject,
-      text: params.text,
-      html: params.html,
-    });
+    await sendResendEmail(params);
   } catch (error) {
-    console.error('[email] Failed to send email (non-blocking):', error);
+    console.error('[email] Non-critical email delivery failed:', error instanceof Error ? error.message : 'unknown error');
   }
+}
+
+export async function sendEmailOtp(email: string, code: string): Promise<void> {
+  if (process.env.NODE_ENV === 'test') return;
+  await sendResendEmail({
+    to: email,
+    subject: 'Votre code de vérification TOSUMO',
+    text: `Votre code de vérification TOSUMO est ${code}. Il expire dans 5 minutes. Ne le partagez avec personne.`,
+    html: `<div lang="fr"><h1>Vérification TOSUMO</h1><p>Votre code est :</p><p style="font-size:32px;font-weight:bold;letter-spacing:8px">${code}</p><p>Il expire dans 5 minutes. Ne le partagez avec personne.</p></div>`,
+  });
 }
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
@@ -65,12 +54,7 @@ export async function sendVerificationEmail(email: string, token: string): Promi
   await sendEmail({
     to: email,
     subject: 'Verify your TOSUMO account',
-    html: `
-      <h1>Welcome to TOSUMO</h1>
-      <p>Click the link below to verify your email address:</p>
-      <a href="${verificationUrl}" style="display:inline-block;padding:12px 24px;background:#0066CC;color:white;text-decoration:none;border-radius:4px;">Verify Email</a>
-      <p>This link expires in 24 hours.</p>
-    `,
+    html: `<h1>Welcome to TOSUMO</h1><p>Click the link below to verify your email address:</p><a href="${verificationUrl}">Verify Email</a><p>This link expires in 24 hours.</p>`,
   });
 }
 
@@ -79,11 +63,6 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
   await sendEmail({
     to: email,
     subject: 'Reset your TOSUMO password',
-    html: `
-      <h1>Password Reset</h1>
-      <p>Click the link below to reset your password:</p>
-      <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#0066CC;color:white;text-decoration:none;border-radius:4px;">Reset Password</a>
-      <p>This link expires in 1 hour.</p>
-    `,
+    html: `<h1>Password Reset</h1><p>Click the link below to reset your password:</p><a href="${resetUrl}">Reset Password</a><p>This link expires in 1 hour.</p>`,
   });
 }

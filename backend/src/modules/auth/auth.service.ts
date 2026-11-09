@@ -3,7 +3,7 @@ import { hashPassword, verifyPassword } from '@shared/utils/password';
 import { generateTokenPair, verifyRefreshToken } from '@shared/utils/jwt';
 import { JwtPayload } from '@shared/types';
 import { BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
-import { sendVerificationEmail } from '@shared/services/email';
+import { sendEmailOtp, sendVerificationEmail } from '@shared/services/email';
 import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInput } from './auth.validation';
 import { OtpProvider, createOtpProvider, generateOtp } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
@@ -285,6 +285,45 @@ export class AuthService {
     };
   }
 
+  async sendEmailOtp(email: string) {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.repository.findByEmail(normalized);
+    if (!user) throw new BadRequestError('Aucun compte ne correspond à cette adresse email.');
+    const code = generateOtp();
+    const key = `email:${normalized}`;
+    const now = new Date();
+    const hash = createHmac('sha256', config.sms.otpHashSecret).update(`email_verification:${key}:${code}`).digest('hex');
+    const current = await prisma.phoneOtp.findUnique({ where: { phone_operation: { phone: key, operation: 'email_verification' } } });
+    if (current && now.getTime() - current.createdAt.getTime() < 60_000) throw new BadRequestError('Veuillez attendre avant de demander un nouveau code.');
+    await prisma.phoneOtp.upsert({
+      where: { phone_operation: { phone: key, operation: 'email_verification' } },
+      create: { phone: key, operation: 'email_verification', otpHash: hash, createdAt: now, expiresAt: new Date(now.getTime()+300_000), attempts: 0 },
+      update: { otpHash: hash, createdAt: now, expiresAt: new Date(now.getTime()+300_000), attempts: 0, verifiedAt: null },
+    });
+    try { await sendEmailOtp(normalized, code); }
+    catch { await prisma.phoneOtp.updateMany({ where: { phone: key, operation: 'email_verification', createdAt: now }, data: { verifiedAt: now } }); throw new BadRequestError('Impossible d’envoyer le code email.'); }
+    return { message: 'Code envoyé par email', expiresIn: 300, resendAfter: 60, mode: 'email' };
+  }
+
+  async verifyEmailOtp(email: string, code: string) {
+    const normalized = email.trim().toLowerCase();
+    if (!/^\d{6}$/.test(code)) throw new BadRequestError('Code invalide.');
+    const key = `email:${normalized}`;
+    const current = await prisma.phoneOtp.findUnique({ where: { phone_operation: { phone: key, operation: 'email_verification' } } });
+    if (!current || current.verifiedAt || current.expiresAt <= new Date() || current.attempts >= 5) throw new BadRequestError('Code invalide ou expiré.');
+    const expected = createHmac('sha256', config.sms.otpHashSecret).update(`email_verification:${key}:${code}`).digest('hex');
+    const a = Buffer.from(expected, 'hex'); const b = Buffer.from(current.otpHash, 'hex');
+    if (a.length !== b.length || !timingSafeEqual(a,b)) {
+      await prisma.phoneOtp.updateMany({ where: { id: current.id, attempts: { lt: 5 } }, data: { attempts: { increment: 1 } } });
+      throw new BadRequestError('Code invalide ou expiré.');
+    }
+    const used = await prisma.phoneOtp.updateMany({ where: { id: current.id, verifiedAt: null, expiresAt: { gt: new Date() }, attempts: { lt: 5 } }, data: { verifiedAt: new Date() } });
+    if (!used.count) throw new BadRequestError('Code invalide ou expiré.');
+    const user = await this.repository.findByEmail(normalized);
+    if (user) await prisma.user.update({ where: { id: user.id }, data: { isEmailVerified: true } });
+    return { message: 'Adresse email vérifiée', mode: 'email' };
+  }
+
   async verifyOtp(phone: string, code: string) {
     const normalized = normalizeCameroonPhone(phone);
     if (!normalized) throw new BadRequestError('Invalid Cameroon phone number');
@@ -548,3 +587,5 @@ export class AuthService {
     };
   }
 }
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { config } from '@shared/config';

@@ -42,17 +42,15 @@ export const config = {
   },
 
   email: {
-    host: process.env.SMTP_HOST || '',
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
+    resendApiKey: process.env.RESEND_API_KEY || '',
     from: process.env.EMAIL_FROM || 'noreply@tosumo.cm',
   },
 
   sms: {
-    orangeClientId: process.env.ORANGE_SMS_CLIENT_ID || '',
-    orangeClientSecret: process.env.ORANGE_SMS_CLIENT_SECRET || '',
-    orangeSenderAddress: process.env.ORANGE_SMS_SENDER_ADDRESS || 'tel:+2370000',
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+    twilioFromNumber: process.env.TWILIO_FROM_NUMBER || '',
+    twilioMessagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID || '',
     otpHashSecret: process.env.OTP_HASH_SECRET || '',
   },
 
@@ -117,14 +115,14 @@ export function validateEnvironment(): { warnings: string[] } {
   }
 
   // Demo-mode notices for optional external integrations.
-  if (!config.sms.orangeClientId || !config.sms.orangeClientSecret || !config.sms.otpHashSecret) {
-    warnings.push('Orange SMS / OTP secrets are missing — phone verification cannot send OTPs');
+  if (!config.sms.twilioAccountSid || !config.sms.twilioAuthToken || (!config.sms.twilioFromNumber && !config.sms.twilioMessagingServiceSid) || !config.sms.otpHashSecret) {
+    warnings.push('Twilio SMS / OTP configuration is incomplete — phone verification cannot send OTPs');
   }
   if (!config.payment.provider || config.payment.provider === 'mock') {
     warnings.push('Payment provider not configured — running with MOCK payments');
   }
-  if (!config.email.host) {
-    warnings.push('SMTP not configured — email notifications disabled');
+  if (!config.email.resendApiKey) {
+    warnings.push('Resend not configured — email notifications disabled');
   }
   if (!config.encryption.key || isPlaceholder(config.encryption.key, ['default-', 'change-me', 'your-'])) {
     warnings.push('ENCRYPTION_KEY not set — sensitive-field encryption disabled');

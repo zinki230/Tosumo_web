@@ -64,6 +64,11 @@ export const verifyOtpSchema = z.object({
   code: z.string().length(6).regex(/^\d{6}$/, 'OTP code must be exactly 6 digits'),
 });
 
+export const emailOtpSchema = z.object({
+  email: z.string().trim().email().max(254),
+  code: z.string().length(6).regex(/^\d{6}$/).optional(),
+});
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters')

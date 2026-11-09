@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { AuthenticatedRequest } from '@shared/types';
-import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema, registerInstitutionSchema } from './auth.validation';
+import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, emailOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema, registerInstitutionSchema } from './auth.validation';
 
 const authService = new AuthService();
 
@@ -112,6 +112,16 @@ export class AuthController {
     } catch (error) {
       next(error);
     }
+  }
+
+  async sendEmailOtp(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try { const { email } = emailOtpSchema.parse(req.body); res.json({ success: true, data: await authService.sendEmailOtp(email) }); }
+    catch (error) { next(error); }
+  }
+
+  async verifyEmailOtp(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try { const { email, code } = emailOtpSchema.required({ code: true }).parse(req.body); res.json({ success: true, data: await authService.verifyEmailOtp(email, code!) }); }
+    catch (error) { next(error); }
   }
 
   async resetPassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {

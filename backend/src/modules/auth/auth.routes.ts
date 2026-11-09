@@ -20,6 +20,8 @@ router.post('/check-phone', authLimiter, controller.checkPhone);
 router.post('/send-otp', authLimiter, otpSendLimiter, controller.sendOtp);
 router.post('/resend-otp', authLimiter, otpSendLimiter, controller.sendOtp);
 router.post('/verify-otp', authLimiter, controller.verifyOtp);
+router.post('/send-email-otp', authLimiter, otpSendLimiter, controller.sendEmailOtp);
+router.post('/verify-email-otp', authLimiter, controller.verifyEmailOtp);
 router.post('/reset-password', controller.resetPassword);
 
 export default router;
