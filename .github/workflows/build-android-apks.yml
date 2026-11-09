@@ -13,16 +13,8 @@ permissions:
 
 jobs:
   build-apk:
-    name: Build ${{ matrix.app }} APK
+    name: Build doctor and patient APKs
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - app: doctor
-            directory: apps/doctor_flutter
-          - app: patient
-            directory: apps/patient_flutter
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,20 +30,48 @@ jobs:
         with:
           channel: stable
           cache: true
-          cache-key: flutter-${{ runner.os }}-${{ matrix.app }}-${{ hashFiles(format('{0}/pubspec.lock', matrix.directory)) }}
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('apps/doctor_flutter/pubspec.lock', 'apps/patient_flutter/pubspec.lock') }}
+
+      - name: Cache Gradle distributions and dependencies
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Install Flutter dependencies
-        working-directory: ${{ matrix.directory }}
-        run: flutter pub get
+        run: |
+          cd apps/doctor_flutter && flutter pub get
+          cd ../patient_flutter && flutter pub get
 
-      - name: Build release APK
-        working-directory: ${{ matrix.directory }}
-        run: flutter build apk --release --dart-define=API_BASE_URL=https://tosumobackend-production.up.railway.app
+      - name: Build doctor release APK (retry transient Gradle download errors)
+        working-directory: apps/doctor_flutter
+        run: |
+          for attempt in 1 2 3; do
+            flutter build apk --release --dart-define=API_BASE_URL=https://tosumobackend-production.up.railway.app && exit 0
+            echo "Doctor APK build attempt ${attempt} failed; retrying after a short delay."
+            sleep 15
+          done
+          exit 1
 
-      - name: Upload APK artifact
+      - name: Build patient release APK (retry transient Gradle download errors)
+        working-directory: apps/patient_flutter
+        run: |
+          for attempt in 1 2 3; do
+            flutter build apk --release --dart-define=API_BASE_URL=https://tosumobackend-production.up.railway.app && exit 0
+            echo "Patient APK build attempt ${attempt} failed; retrying after a short delay."
+            sleep 15
+          done
+          exit 1
+
+      - name: Upload doctor APK
         uses: actions/upload-artifact@v4
         with:
-          name: tosumo-${{ matrix.app }}-android-apk
-          path: ${{ matrix.directory }}/build/app/outputs/flutter-apk/app-release.apk
+          name: tosumo-doctor-android-apk
+          path: apps/doctor_flutter/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload patient APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tosumo-patient-android-apk
+          path: apps/patient_flutter/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
