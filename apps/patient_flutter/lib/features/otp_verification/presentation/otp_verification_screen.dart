@@ -38,7 +38,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   bool _loading = false;
   bool _verified = false;
   bool _otpSent = false;
-  String _channel = 'sms';
+  String? _channel;
   String? _sendError;
   Timer? _timer;
 
@@ -120,6 +120,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   bool get _isComplete => _code.length == _digitCount && _code.characters.every((c) => c.isNotEmpty);
 
   Future<bool> _sendOtp() async {
+    if (_channel == null) return false;
     try {
       final apiClient = ref.read(apiClientProvider);
       if (_channel == 'email') {
@@ -160,7 +161,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   Future<void> _verify() async {
-    if (!_isComplete) return;
+    if (!_isComplete || _channel == null) return;
     setState(() => _loading = true);
     try {
       final apiClient = ref.read(apiClientProvider);
@@ -222,7 +223,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     }
   }
 
-  void _selectChannel(String channel) {
+  void _selectChannel(String? channel) {
     if (_loading || channel == _channel) return;
     _timer?.cancel();
     for (final controller in _controllers) {
@@ -334,7 +335,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           Text.rich(
                             TextSpan(
                               text: _channel == 'email'
-                                  ? 'Le code sera envoyé à '
+                                  ? (_channel == null
+                                      ? 'Choisissez comment recevoir votre code.'
+                                      : _channel == 'email'
+                                          ? 'Le code sera envoyé à '
+                                          : '${t?.t('otp.subtitle') ?? ''} ')
                                   : '${t?.t('otp.subtitle') ?? ''} ',
                               style: const TextStyle(
                                 fontSize: 14,
@@ -342,7 +347,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                               ),
                               children: [
                                 TextSpan(
-                                  text: _channel == 'email' ? _maskedEmail : _phone,
+                                  text: _channel == null
+                                      ? ''
+                                      : (_channel == 'email' ? _maskedEmail : _phone),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     color: AppColors.foreground,
@@ -361,8 +368,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                         ButtonSegment(value: 'sms', label: Text('SMS'), icon: Icon(LucideIcons.messageSquare)),
                         ButtonSegment(value: 'email', label: Text('E-mail'), icon: Icon(LucideIcons.mail)),
                       ],
-                      selected: {_channel},
-                      onSelectionChanged: (selection) => _selectChannel(selection.first),
+                      selected: _channel == null ? <String>{} : {_channel!},
+                      emptySelectionAllowed: true,
+                      onSelectionChanged: (selection) =>
+                          _selectChannel(selection.isEmpty ? null : selection.first),
                     ),
                     if (_channel == 'email' && !_otpSent) ...[
                       const SizedBox(height: 16),
@@ -531,7 +540,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                               child: ElevatedButton(
                         onPressed: _loading
                             ? null
-                            : (_otpSent ? (_isComplete ? _verify : null) : _sendOtp),
+                            : (_otpSent
+                                ? (_isComplete ? _verify : null)
+                                : (_channel == null ? null : _sendOtp)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: AppColors.primaryForeground,

@@ -28,7 +28,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   bool _otpStep = false;
-  String _channel = 'sms';
+  String? _channel;
   bool _loading = false;
   bool _otpVerified = false;
   int _timeLeft = 300;
@@ -88,6 +88,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _sendCode() async {
+    if (_channel == null) {
+      setState(() => _fieldError = 'otp.chooseMethod');
+      return;
+    }
     if (_channel == 'sms' && !_phoneValid) {
       setState(() => _fieldError = 'auth.invalidPhone');
       return;
@@ -167,7 +171,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     _clearOtp();
   }
 
-  void _selectChannel(String channel) {
+  void _selectChannel(String? channel) {
     if (_loading || channel == _channel) return;
     setState(() {
       _channel = channel;
@@ -255,8 +259,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ButtonSegment(value: 'sms', label: Text('SMS'), icon: Icon(LucideIcons.messageSquare)),
                     ButtonSegment(value: 'email', label: Text('E-mail'), icon: Icon(LucideIcons.mail)),
                   ],
-                  selected: {_channel},
-                  onSelectionChanged: (selection) => _selectChannel(selection.first),
+                  selected: _channel == null ? <String>{} : {_channel!},
+                  emptySelectionAllowed: true,
+                  onSelectionChanged: (selection) =>
+                      _selectChannel(selection.isEmpty ? null : selection.first),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -270,7 +276,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   decoration: InputDecoration(
                     labelText: _channel == 'email' ? 'Adresse e-mail' : (t?.t('auth.phone') ?? ''),
                     prefixIcon: Icon(_channel == 'email' ? LucideIcons.mail : LucideIcons.phone, size: 18),
-                    prefixText: _channel == 'sms' ? '+237 ' : null,
+                    prefixText: _channel == 'email' ? null : '+237 ',
                     prefixStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
@@ -314,7 +320,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _loading ? null : _sendCode,
+                onPressed: _loading || _channel == null ? null : _sendCode,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,

@@ -1143,49 +1143,8 @@ class RemoteDoctorRepository
   }
 
   @override
-  Future<void> otpLogin(String phone, String code) async {
-    final response = await _client.dio.post(
-      DoctorApiEndpoints.otpLogin,
-      data: {'phone': phone, 'code': code},
-    );
-    await _persistAuth(response.data as Map<String, dynamic>);
-  }
-
-  @override
-  Future<void> emailOtpLogin(String email, String code) async {
-    final response = await _client.dio.post(
-      DoctorApiEndpoints.verifyEmailOtp,
-      data: {'email': email.trim(), 'code': code, 'purpose': 'login'},
-    );
-    await _persistAuth(response.data as Map<String, dynamic>);
-  }
-
-  @override
   Future<void> sendOtp(String phone) async {
     await _client.dio.post(DoctorApiEndpoints.sendOtp, data: {'phone': phone});
-  }
-
-  @override
-  Future<void> sendEmailOtp(String email) async {
-    await _client.dio.post(
-      DoctorApiEndpoints.sendEmailOtp,
-      data: {'email': email.trim(), 'purpose': 'login'},
-    );
-  }
-
-  @override
-  Future<bool> verifyOtp(String phone, String code) async {
-    try {
-      // NOTE: we intentionally discard the returned tokens so the doctor's
-      // own session is never replaced by the patient's.
-      await _client.dio.post(
-        DoctorApiEndpoints.verifyOtp,
-        data: {'phone': phone, 'code': code},
-      );
-      return true;
-    } on DioException {
-      return false;
-    }
   }
 
   @override

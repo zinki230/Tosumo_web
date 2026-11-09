@@ -202,41 +202,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: AppColors.border.withValues(alpha: 0.5))),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'OU',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.mutedForeground.withValues(alpha: 0.6),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: AppColors.border.withValues(alpha: 0.5))),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/otp'),
-                    icon: const Icon(LucideIcons.smartphone, size: 20),
-                    label: const Text('Connexion par code SMS ou e-mail'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.foreground,
-                      side: const BorderSide(color: AppColors.border),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 32),
               ],
             ),

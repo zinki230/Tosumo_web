@@ -13,12 +13,9 @@ class DoctorApiEndpoints {
   static const String auth = '/api/v1/auth';
   static const String login = '$auth/login';
   static const String register = '$auth/register';
-  static const String otpLogin = '$auth/otp-login';
   static const String refresh = '$auth/refresh';
   static const String logout = '$auth/logout';
   static const String sendOtp = '$auth/send-otp';
-  static const String sendEmailOtp = '$auth/send-email-otp';
-  static const String verifyEmailOtp = '$auth/verify-email-otp';
   static const String resendOtp = '$auth/resend-otp';
   static const String verifyOtp = '$auth/verify-otp';
   static const String resetPassword = '$auth/reset-password';

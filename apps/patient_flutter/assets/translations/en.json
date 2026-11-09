@@ -103,6 +103,7 @@
     "step": "Step {{current}} of {{total}}"
   },
   "otp": {
+    "chooseMethod": "Choose SMS or email to receive your code.",
     "title": "Your Code",
     "subtitle": "Code sent to",
     "resend": "Resend Code",
