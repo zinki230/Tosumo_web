@@ -20,6 +20,7 @@ class RegistrationState {
   final String city;
   final String role;
   final String phone;
+  final String email;
   final double progress;
 
   const RegistrationState({
@@ -31,6 +32,7 @@ class RegistrationState {
     this.city = '',
     this.role = 'patient',
     this.phone = '',
+    this.email = '',
     this.progress = 0,
   });
 
@@ -43,6 +45,7 @@ class RegistrationState {
     String? city,
     String? role,
     String? phone,
+    String? email,
     double? progress,
   }) {
     return RegistrationState(
@@ -54,6 +57,7 @@ class RegistrationState {
       city: city ?? this.city,
       role: role ?? this.role,
       phone: phone ?? this.phone,
+      email: email ?? this.email,
       progress: progress ?? this.progress,
     );
   }
@@ -75,6 +79,7 @@ class RegistrationNotifier extends Notifier<RegistrationState> {
     String? city,
     String? role,
     String? phone,
+    String? email,
   }) {
     state = state.copyWith(
       firstName: firstName,
@@ -84,6 +89,7 @@ class RegistrationNotifier extends Notifier<RegistrationState> {
       city: city,
       role: role,
       phone: phone,
+      email: email,
     );
   }
 

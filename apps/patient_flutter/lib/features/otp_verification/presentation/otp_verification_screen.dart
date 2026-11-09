@@ -31,11 +31,15 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     _digitCount,
     (_) => TextEditingController(),
   );
+  final _emailController = TextEditingController();
   final List<FocusNode> _focusNodes = List.generate(_digitCount, (_) => FocusNode());
   int _timeLeft = 300;
   int _resendLeft = 60;
   bool _loading = false;
   bool _verified = false;
+  bool _otpSent = false;
+  String _channel = 'sms';
+  String? _sendError;
   Timer? _timer;
 
   String get _phone =>
@@ -47,7 +51,6 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void initState() {
     super.initState();
     _startTimer();
-    _sendOtp();
   }
 
   @override
@@ -55,6 +58,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     for (final c in _controllers) {
       c.dispose();
     }
+    _emailController.dispose();
     for (final f in _focusNodes) {
       f.dispose();
     }
@@ -118,21 +122,37 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   Future<bool> _sendOtp() async {
     try {
       final apiClient = ref.read(apiClientProvider);
-      await apiClient.post(ApiEndpoints.sendOtp, data: {'phone': _phone});
+      if (_channel == 'email') {
+        final email = _emailController.text.trim();
+        if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+          setState(() => _sendError = 'Entrez une adresse e-mail valide.');
+          return false;
+        }
+        await apiClient.post(ApiEndpoints.sendEmailOtp, data: {
+          'email': email,
+          'purpose': 'registration',
+        });
+      } else {
+        await apiClient.post(ApiEndpoints.sendOtp, data: {'phone': _phone});
+      }
       if (mounted) {
         _timer?.cancel();
         setState(() {
           _timeLeft = 300;
           _resendLeft = 60;
+          _otpSent = true;
+          _sendError = null;
         });
         _startTimer();
       }
       return true;
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t?.t('otp.sendFailed') ?? '')),
+          SnackBar(content: Text(e.toString().contains('EMAIL_ALREADY_REGISTERED')
+              ? 'Cette adresse e-mail est déjà utilisée.'
+              : (t?.t('otp.sendFailed') ?? 'Échec de l’envoi du code.'))),
         );
       }
       return false;
@@ -145,10 +165,20 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     try {
       final apiClient = ref.read(apiClientProvider);
       try {
-        await apiClient.post(ApiEndpoints.verifyOtp, data: {
-          'phone': _phone,
-          'code': _code,
-        });
+        if (_channel == 'email') {
+          final email = _emailController.text.trim().toLowerCase();
+          await apiClient.post(ApiEndpoints.verifyEmailOtp, data: {
+            'email': email,
+            'code': _code,
+            'purpose': 'registration',
+          });
+          ref.read(registrationProvider.notifier).setRegistrationData(email: email);
+        } else {
+          await apiClient.post(ApiEndpoints.verifyOtp, data: {
+            'phone': _phone,
+            'code': _code,
+          });
+        }
       } catch (_) {
         if (!mounted) return;
         final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
@@ -190,6 +220,29 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     for (final controller in _controllers) {
       controller.clear();
     }
+  }
+
+  void _selectChannel(String channel) {
+    if (_loading || channel == _channel) return;
+    _timer?.cancel();
+    for (final controller in _controllers) {
+      controller.clear();
+    }
+    setState(() {
+      _channel = channel;
+      _otpSent = false;
+      _timeLeft = 300;
+      _resendLeft = 60;
+      _sendError = null;
+    });
+  }
+
+  String get _maskedEmail {
+    final parts = _emailController.text.trim().split('@');
+    if (parts.length != 2) return _emailController.text.trim();
+    final local = parts.first;
+    final visible = local.length < 3 ? local : '${local.substring(0, 2)}•••';
+    return '$visible@${parts.last}';
   }
 
   @override
@@ -280,14 +333,16 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           const SizedBox(height: 8),
                           Text.rich(
                             TextSpan(
-                              text: '${t?.t('otp.subtitle') ?? ''} ',
+                              text: _channel == 'email'
+                                  ? 'Le code sera envoyé à '
+                                  : '${t?.t('otp.subtitle') ?? ''} ',
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: AppColors.mutedForeground,
                               ),
                               children: [
                                 TextSpan(
-                                  text: _phone,
+                                  text: _channel == 'email' ? _maskedEmail : _phone,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     color: AppColors.foreground,
@@ -301,8 +356,31 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'sms', label: Text('SMS'), icon: Icon(LucideIcons.messageSquare)),
+                        ButtonSegment(value: 'email', label: Text('E-mail'), icon: Icon(LucideIcons.mail)),
+                      ],
+                      selected: {_channel},
+                      onSelectionChanged: (selection) => _selectChannel(selection.first),
+                    ),
+                    if (_channel == 'email' && !_otpSent) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _emailController,
+                        enabled: !_loading,
+                        keyboardType: TextInputType.emailAddress,
+                        onChanged: (_) => setState(() => _sendError = null),
+                        decoration: InputDecoration(
+                          labelText: 'Adresse e-mail',
+                          prefixIcon: const Icon(LucideIcons.mail),
+                          errorText: _sendError,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
-                    AnimatedMount(
+                    if (_otpSent) AnimatedMount(
                       animation: 'fadeInUp',
                       delay: 200,
                       child: GestureDetector(
@@ -360,7 +438,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    AnimatedMount(
+                    if (_otpSent) AnimatedMount(
                       animation: 'fadeInUp',
                       delay: 300,
                       child: Row(
@@ -451,7 +529,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           : SizedBox(
                               width: 200,
                               child: ElevatedButton(
-                                onPressed: _isComplete && !_loading ? _verify : null,
+                        onPressed: _loading
+                            ? null
+                            : (_otpSent ? (_isComplete ? _verify : null) : _sendOtp),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: AppColors.primaryForeground,
@@ -484,7 +564,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                           Text(t?.t('otp.verifying') ?? ''),
                                         ],
                                       )
-                                    : Text(t?.t('otp.verify') ?? ''),
+                                    : Text(_otpSent ? (t?.t('otp.verify') ?? 'Vérifier') : 'Envoyer le code'),
                               ),
                             ),
                     ),
@@ -492,7 +572,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
               ),
             ),
-            Container(
+            if (_otpSent) Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: AppColors.muted.withAlpha(128),

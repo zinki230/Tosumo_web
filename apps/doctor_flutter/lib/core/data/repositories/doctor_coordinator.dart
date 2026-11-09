@@ -824,8 +824,18 @@ class RepositoryCoordinator
   }
 
   @override
+  Future<void> emailOtpLogin(String email, String code) {
+    return _remote.emailOtpLogin(email, code);
+  }
+
+  @override
   Future<void> sendOtp(String phone) {
     return _remote.sendOtp(phone);
+  }
+
+  @override
+  Future<void> sendEmailOtp(String email) {
+    return _remote.sendEmailOtp(email);
   }
 
   @override

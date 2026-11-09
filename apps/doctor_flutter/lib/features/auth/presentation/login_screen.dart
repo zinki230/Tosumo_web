@@ -226,7 +226,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => context.push('/otp'),
                     icon: const Icon(LucideIcons.smartphone, size: 20),
-                    label: const Text('Connexion par code SMS'),
+                    label: const Text('Connexion par code SMS ou e-mail'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.foreground,
                       side: const BorderSide(color: AppColors.border),

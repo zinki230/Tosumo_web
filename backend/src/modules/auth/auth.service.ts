@@ -30,7 +30,7 @@ export class AuthService {
     if (!phone) {
       throw new BadRequestError('Invalid Cameroon phone number');
     }
-    const email = input.email?.trim() || placeholderEmailForPhone(phone);
+    const email = input.email?.trim().toLowerCase() || placeholderEmailForPhone(phone);
 
     const existingPhone = await this.repository.findByPhone(phone);
     if (existingPhone) {
@@ -49,6 +49,16 @@ export class AuthService {
       where: { phone_operation: { phone, operation: 'phone_verification' } },
       select: { verifiedAt: true },
     });
+    const requiresEmailVerification = Boolean(input.email?.trim() && !email.startsWith('phone-'));
+    const emailVerification = requiresEmailVerification
+      ? await prisma.phoneOtp.findUnique({
+          where: { phone_operation: { phone: `email:registration:${email}`, operation: 'email_verification' } },
+          select: { verifiedAt: true, expiresAt: true },
+        })
+      : null;
+    if (emailVerification && (!emailVerification.verifiedAt || emailVerification.expiresAt <= new Date() || Date.now() - emailVerification.verifiedAt.getTime() > 10 * 60_000)) {
+      throw new BadRequestError('Veuillez vérifier votre adresse email avant de créer le compte.');
+    }
 
     let user;
     try {
@@ -60,6 +70,7 @@ export class AuthService {
             passwordHash,
             role: input.role,
             isPhoneVerified: Boolean(phoneVerification?.verifiedAt),
+            isEmailVerified: Boolean(emailVerification?.verifiedAt),
           },
         });
 
@@ -108,7 +119,7 @@ export class AuthService {
 
     await this.repository.updateRefreshToken(user.id, tokens.refreshToken);
 
-    if (process.env.NODE_ENV !== 'test' && email.includes('@')) {
+    if (process.env.NODE_ENV !== 'test' && email.includes('@') && !emailVerification?.verifiedAt) {
       sendVerificationEmail(email, tokens.accessToken).catch(console.error);
     }
 
@@ -285,12 +296,17 @@ export class AuthService {
     };
   }
 
-  async sendEmailOtp(email: string) {
+  async sendEmailOtp(email: string, purpose: 'login' | 'registration' = 'login') {
     const normalized = email.trim().toLowerCase();
     const user = await this.repository.findByEmail(normalized);
-    if (!user) throw new BadRequestError('Aucun compte ne correspond à cette adresse email.');
+    if (purpose === 'login' && !user) throw new BadRequestError('Aucun compte ne correspond à cette adresse email.');
+    if (purpose === 'registration' && user) {
+      const err = new ConflictError('Email already registered');
+      err.code = 'EMAIL_ALREADY_REGISTERED';
+      throw err;
+    }
     const code = generateOtp();
-    const key = `email:${normalized}`;
+    const key = `email:${purpose}:${normalized}`;
     const now = new Date();
     const hash = createHmac('sha256', config.sms.otpHashSecret).update(`email_verification:${key}:${code}`).digest('hex');
     const current = await prisma.phoneOtp.findUnique({ where: { phone_operation: { phone: key, operation: 'email_verification' } } });
@@ -301,14 +317,14 @@ export class AuthService {
       update: { otpHash: hash, createdAt: now, expiresAt: new Date(now.getTime()+300_000), attempts: 0, verifiedAt: null },
     });
     try { await sendEmailOtp(normalized, code); }
-    catch { await prisma.phoneOtp.updateMany({ where: { phone: key, operation: 'email_verification', createdAt: now }, data: { verifiedAt: now } }); throw new BadRequestError('Impossible d’envoyer le code email.'); }
+    catch { await prisma.phoneOtp.updateMany({ where: { phone: key, operation: 'email_verification', createdAt: now }, data: { verifiedAt: now, expiresAt: new Date(now.getTime() - 1) } }); throw new BadRequestError('Impossible d’envoyer le code email.'); }
     return { message: 'Code envoyé par email', expiresIn: 300, resendAfter: 60, mode: 'email' };
   }
 
-  async verifyEmailOtp(email: string, code: string) {
+  async verifyEmailOtp(email: string, code: string, purpose: 'login' | 'registration' = 'login') {
     const normalized = email.trim().toLowerCase();
     if (!/^\d{6}$/.test(code)) throw new BadRequestError('Code invalide.');
-    const key = `email:${normalized}`;
+    const key = `email:${purpose}:${normalized}`;
     const current = await prisma.phoneOtp.findUnique({ where: { phone_operation: { phone: key, operation: 'email_verification' } } });
     if (!current || current.verifiedAt || current.expiresAt <= new Date() || current.attempts >= 5) throw new BadRequestError('Code invalide ou expiré.');
     const expected = createHmac('sha256', config.sms.otpHashSecret).update(`email_verification:${key}:${code}`).digest('hex');
@@ -320,8 +336,30 @@ export class AuthService {
     const used = await prisma.phoneOtp.updateMany({ where: { id: current.id, verifiedAt: null, expiresAt: { gt: new Date() }, attempts: { lt: 5 } }, data: { verifiedAt: new Date() } });
     if (!used.count) throw new BadRequestError('Code invalide ou expiré.');
     const user = await this.repository.findByEmail(normalized);
-    if (user) await prisma.user.update({ where: { id: user.id }, data: { isEmailVerified: true } });
-    return { message: 'Adresse email vérifiée', mode: 'email' };
+    if (purpose === 'registration') {
+      return { message: 'Adresse email vérifiée', mode: 'email', verified: true };
+    }
+    if (!user || !user.isActive) throw new UnauthorizedError('Aucun compte actif ne correspond à cette adresse email.');
+    await prisma.user.update({ where: { id: user.id }, data: { isEmailVerified: true } });
+    const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role as JwtPayload['role'] };
+    const tokens = generateTokenPair(payload);
+    await this.repository.updateRefreshToken(user.id, tokens.refreshToken);
+    await this.repository.updateLastLogin(user.id);
+    return {
+      message: 'Adresse email vérifiée',
+      mode: 'email',
+      user: {
+        id: user.id,
+        patientId: (user as any).patientProfile?.id ?? null,
+        isOnboarded: (user as any).patientProfile?.isOnboarded ?? false,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isEmailVerified: true,
+        isPhoneVerified: user.isPhoneVerified,
+      },
+      tokens,
+    };
   }
 
   async verifyOtp(phone: string, code: string) {

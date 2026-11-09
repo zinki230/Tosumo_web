@@ -900,7 +900,17 @@ class LocalDoctorRepository implements
   }
 
   @override
+  Future<void> emailOtpLogin(String email, String code) async {
+    throw UnimplementedError('Local login is not supported');
+  }
+
+  @override
   Future<void> sendOtp(String phone) async {
+    throw UnimplementedError('Local OTP is not supported');
+  }
+
+  @override
+  Future<void> sendEmailOtp(String email) async {
     throw UnimplementedError('Local OTP is not supported');
   }
 

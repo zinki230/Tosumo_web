@@ -25,11 +25,13 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
   bool _isVerified = false;
   bool _otpSent = false;
+  String _channel = 'sms';
   String? _errorMessage;
   int _countdown = 60;
   Timer? _timer;
@@ -41,8 +43,6 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     super.initState();
     if (widget.phone != null) {
       _phoneController.text = widget.phone!;
-      _startCountdown();
-      _otpSent = true;
       _sendOtp();
     }
   }
@@ -50,6 +50,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   @override
   void dispose() {
     _phoneController.dispose();
+    _emailController.dispose();
     for (final c in _otpControllers) {
       c.dispose();
     }
@@ -61,6 +62,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   String get _phone => _phoneController.text.trim();
+  String get _email => _emailController.text.trim();
 
   void _startCountdown() {
     _canResend = false;
@@ -106,7 +108,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       _errorMessage = null;
     });
     try {
-      await ref.read(authRepositoryProvider).sendOtp(_phone);
+      if (_channel == 'email') {
+        if (!_emailValid) throw Exception('Adresse e-mail invalide');
+        await ref.read(authRepositoryProvider).sendEmailOtp(_email);
+      } else {
+        await ref.read(authRepositoryProvider).sendOtp(_phone);
+      }
       if (mounted) {
         setState(() {
           _otpSent = true;
@@ -136,7 +143,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       _errorMessage = null;
     });
     try {
-      await ref.read(authRepositoryProvider).otpLogin(_phone, code);
+      if (_channel == 'email') {
+        await ref.read(authRepositoryProvider).emailOtpLogin(_email, code);
+      } else {
+        await ref.read(authRepositoryProvider).otpLogin(_phone, code);
+      }
       if (mounted) {
         setState(() => _isVerified = true);
         Future.delayed(const Duration(seconds: 1), () {
@@ -166,6 +177,23 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length < 9 || digits.length > 13) return 'Numéro invalide';
     return null;
+  }
+
+  bool get _emailValid => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(_email);
+
+  String? _emailValidator(String? value) => _emailValid ? null : 'Adresse e-mail invalide';
+
+  void _selectChannel(String channel) {
+    if (_isLoading || channel == _channel) return;
+    _timer?.cancel();
+    for (final controller in _otpControllers) {
+      controller.clear();
+    }
+    setState(() {
+      _channel = channel;
+      _otpSent = false;
+      _errorMessage = null;
+    });
   }
 
   @override
@@ -235,8 +263,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             const SizedBox(height: 8),
             Text(
               _otpSent
-                  ? 'Un code à 6 chiffres a été envoyé à\n$_phone'
-                  : 'Entrez votre numéro pour recevoir un code',
+                  ? 'Un code à 6 chiffres a été envoyé à\n${_channel == 'email' ? _email : _phone}'
+                  : (_channel == 'email'
+                      ? 'Entrez votre adresse e-mail pour recevoir un code'
+                      : 'Entrez votre numéro pour recevoir un code'),
               style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
               textAlign: TextAlign.center,
             ),
@@ -250,21 +280,42 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               ),
               child: Column(
                 children: [
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'sms', label: Text('SMS'), icon: Icon(LucideIcons.messageSquare)),
+                      ButtonSegment(value: 'email', label: Text('E-mail'), icon: Icon(LucideIcons.mail)),
+                    ],
+                    selected: {_channel},
+                    onSelectionChanged: (selection) => _selectChannel(selection.first),
+                  ),
+                  const SizedBox(height: 16),
                   Form(
                     key: _formKey,
                     child: Column(
                       children: [
                         if (!_otpSent) ...[
-                          TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: 'Numéro de téléphone',
-                              hintText: '+237 6XX XX XX XX',
-                              prefixIcon: Icon(LucideIcons.phone, size: 20),
+                          if (_channel == 'email')
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: 'Adresse e-mail',
+                                hintText: 'nom@exemple.com',
+                                prefixIcon: Icon(LucideIcons.mail, size: 20),
+                              ),
+                              validator: _emailValidator,
+                            )
+                          else
+                            TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              decoration: const InputDecoration(
+                                labelText: 'Numéro de téléphone',
+                                hintText: '+237 6XX XX XX XX',
+                                prefixIcon: Icon(LucideIcons.phone, size: 20),
+                              ),
+                              validator: _phoneValidator,
                             ),
-                            validator: _phoneValidator,
-                          ),
                           const SizedBox(height: 16),
                         ],
                         if (_otpSent)
@@ -335,7 +386,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   AppButton(
                     label: _otpSent ? 'Vérifier' : 'Envoyer le code',
                     loading: _isLoading,
-                    onPressed: _otpSent ? _verifyOtp : _sendOtp,
+                    onPressed: _otpSent
+                        ? _verifyOtp
+                        : () {
+                            if (_formKey.currentState?.validate() ?? false) _sendOtp();
+                          },
                   ),
                   if (_otpSent) ...[
                     Text(

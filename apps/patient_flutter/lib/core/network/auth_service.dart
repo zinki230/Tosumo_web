@@ -51,6 +51,13 @@ class AuthService {
     return _safeString(data['mode']);
   }
 
+  Future<void> sendEmailOtp({required String email, String purpose = 'login'}) async {
+    await _client.post(ApiEndpoints.sendEmailOtp, data: {
+      'email': email.trim(),
+      'purpose': purpose,
+    });
+  }
+
   /// Checks whether a phone number already belongs to an account. The backend
   /// (and the database unique index) remain the source of truth; this only
   /// gives the registration UI an early, clear rejection before OTP.
@@ -72,6 +79,15 @@ class AuthService {
       'code': code,
     });
     return await _buildAuthResult(response.data);
+  }
+
+  Future<AuthResult> emailOtpLogin({required String email, required String code}) async {
+    final response = await _client.post(ApiEndpoints.verifyEmailOtp, data: {
+      'email': email.trim(),
+      'code': code,
+      'purpose': 'login',
+    });
+    return _buildAuthResult(response.data);
   }
 
   Future<AuthResult> register({

@@ -67,6 +67,7 @@ export const verifyOtpSchema = z.object({
 export const emailOtpSchema = z.object({
   email: z.string().trim().email().max(254),
   code: z.string().length(6).regex(/^\d{6}$/).optional(),
+  purpose: z.enum(['login', 'registration']).optional().default('login'),
 });
 
 export const changePasswordSchema = z.object({

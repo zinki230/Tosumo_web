@@ -20,6 +20,7 @@ class SignInScreen extends ConsumerStatefulWidget {
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(
     6,
     (_) => TextEditingController(),
@@ -27,6 +28,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   bool _otpStep = false;
+  String _channel = 'sms';
   bool _loading = false;
   bool _otpVerified = false;
   int _timeLeft = 300;
@@ -37,6 +39,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   void dispose() {
     _phoneController.dispose();
+    _emailController.dispose();
     for (final c in _otpControllers) {
       c.dispose();
     }
@@ -50,10 +53,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   String get _normalizedPhone => normalizeCameroonPhone(_phoneController.text);
 
   bool get _phoneValid => isValidCameroonPhone(_phoneController.text);
+  bool get _emailValid => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(_emailController.text.trim());
 
   String get _maskedPhone => _normalizedPhone.length >= 10
       ? '${_normalizedPhone.substring(0, 8)}••••'
       : _normalizedPhone;
+  String get _maskedEmail {
+    final parts = _emailController.text.trim().split('@');
+    if (parts.length != 2) return _emailController.text.trim();
+    final local = parts.first;
+    final visible = local.length <= 2 ? local : '${local.substring(0, 2)}•••';
+    return '$visible@${parts.last}';
+  }
+  String get _maskedTarget => _channel == 'email' ? _maskedEmail : _maskedPhone;
 
   String get _otpCode => _otpControllers.map((c) => c.text).join();
   bool get _otpComplete => _otpCode.length == 6;
@@ -76,8 +88,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _sendCode() async {
-    if (!_phoneValid) {
+    if (_channel == 'sms' && !_phoneValid) {
       setState(() => _fieldError = 'auth.invalidPhone');
+      return;
+    }
+    if (_channel == 'email' && !_emailValid) {
+      setState(() => _fieldError = 'auth.invalidEmail');
       return;
     }
     final isResend = _otpStep;
@@ -85,9 +101,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _loading = true;
       _fieldError = null;
     });
-    final mode = await ref
-        .read(authProvider.notifier)
-        .sendLoginOtp(_normalizedPhone);
+    final notifier = ref.read(authProvider.notifier);
+    final mode = _channel == 'email'
+        ? await notifier.sendLoginEmailOtp(_emailController.text.trim())
+        : await notifier.sendLoginOtp(_normalizedPhone);
     if (!mounted) return;
     final authState = ref.read(authProvider);
     if (mode == null) {
@@ -115,9 +132,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Future<void> _verifyCode() async {
     if (!_otpComplete) return;
     setState(() => _loading = true);
-    final ok = await ref
-        .read(authProvider.notifier)
-        .loginWithOtp(phone: _normalizedPhone, code: _otpCode);
+    final notifier = ref.read(authProvider.notifier);
+    final ok = _channel == 'email'
+        ? await notifier.loginWithEmailOtp(email: _emailController.text.trim(), code: _otpCode)
+        : await notifier.loginWithOtp(phone: _normalizedPhone, code: _otpCode);
     if (!mounted) return;
     setState(() => _loading = false);
     final authState = ref.read(authProvider);
@@ -145,6 +163,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   void _changeNumber() {
     setState(() => _otpStep = false);
+    _timer?.cancel();
+    _clearOtp();
+  }
+
+  void _selectChannel(String channel) {
+    if (_loading || channel == _channel) return;
+    setState(() {
+      _channel = channel;
+      _otpStep = false;
+      _fieldError = null;
+    });
     _timer?.cancel();
     _clearOtp();
   }
@@ -198,7 +227,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             animation: 'fadeInUp',
             delay: 0,
             child: Text(
-              t?.t('auth.phoneLoginTitle') ?? '',
+              _channel == 'email' ? 'Connexion par e-mail' : (t?.t('auth.phoneLoginTitle') ?? ''),
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
@@ -208,7 +237,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             animation: 'fadeInUp',
             delay: 80,
             child: Text(
-              t?.t('auth.phoneLoginSubtitle') ?? '',
+              _channel == 'email'
+                  ? 'Entrez votre adresse e-mail pour recevoir un code de vérification.'
+                  : (t?.t('auth.phoneLoginSubtitle') ?? ''),
               style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
               textAlign: TextAlign.center,
             ),
@@ -217,36 +248,48 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           AnimatedMount(
             animation: 'fadeInUp',
             delay: 150,
-            child: TextField(
-              controller: _phoneController,
-              enabled: !_loading,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(9),
+            child: Column(
+              children: [
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'sms', label: Text('SMS'), icon: Icon(LucideIcons.messageSquare)),
+                    ButtonSegment(value: 'email', label: Text('E-mail'), icon: Icon(LucideIcons.mail)),
+                  ],
+                  selected: {_channel},
+                  onSelectionChanged: (selection) => _selectChannel(selection.first),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _channel == 'email' ? _emailController : _phoneController,
+                  enabled: !_loading,
+                  keyboardType: _channel == 'email' ? TextInputType.emailAddress : TextInputType.phone,
+                  inputFormatters: _channel == 'sms'
+                      ? [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)]
+                      : null,
+                  style: const TextStyle(fontSize: 15),
+                  decoration: InputDecoration(
+                    labelText: _channel == 'email' ? 'Adresse e-mail' : (t?.t('auth.phone') ?? ''),
+                    prefixIcon: Icon(_channel == 'email' ? LucideIcons.mail : LucideIcons.phone, size: 18),
+                    prefixText: _channel == 'sms' ? '+237 ' : null,
+                    prefixStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                    errorText: _fieldError != null ? t?.t(_fieldError!) : null,
+                  ),
+                ),
               ],
-              style: const TextStyle(fontSize: 15),
-              decoration: InputDecoration(
-                labelText: t?.t('auth.phone') ?? '',
-                prefixIcon: const Icon(LucideIcons.phone, size: 18),
-                prefixText: '+237 ',
-                prefixStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                ),
-                errorText: _fieldError != null ? t?.t(_fieldError!) : null,
-              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -350,7 +393,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
                 children: [
                   TextSpan(
-                    text: _maskedPhone,
+                  text: _maskedTarget,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       color: AppColors.foreground,

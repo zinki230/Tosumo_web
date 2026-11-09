@@ -59,6 +59,9 @@ class _IdentityGenerationScreenState extends ConsumerState<IdentityGenerationScr
     final dateOfBirth = reg.dateOfBirth;
     final city = reg.city;
     final phone = reg.phone.trim();
+    final email = reg.email.trim().isNotEmpty
+        ? reg.email.trim().toLowerCase()
+        : 'phone-${phone.replaceAll(RegExp(r'\D'), '')}@tosumo.cm';
     final role = reg.role.isEmpty ? 'patient' : reg.role;
     final name = '$firstName $lastName'.trim();
 
@@ -78,7 +81,7 @@ class _IdentityGenerationScreenState extends ConsumerState<IdentityGenerationScr
       try {
         final ok = await ref.read(authProvider.notifier).register(
           name: name,
-          email: 'patient${phone.replaceAll(RegExp(r'[\s+\-]'), '')}@tosumo.cm',
+          email: email,
           password: 'Tosumo@${DateTime.now().year}',
           role: role,
           gender: gender,

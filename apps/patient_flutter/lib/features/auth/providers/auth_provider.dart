@@ -272,6 +272,20 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  Future<String?> sendLoginEmailOtp(String email) async {
+    state = state.copyWith(status: AuthStatus.loading, error: null);
+    try {
+      await _authService.sendEmailOtp(email: email);
+      return 'email';
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: _friendlyError(e),
+      );
+      return null;
+    }
+  }
+
   /// Completes passwordless login with the OTP code the patient received.
   Future<bool> loginWithOtp({
     required String phone,
@@ -281,6 +295,28 @@ class AuthNotifier extends Notifier<AuthState> {
     await _prepareFreshSession();
     try {
       final result = await _authService.otpLogin(phone: phone, code: code);
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        patient: result.patient,
+        role: result.role,
+        isOnboarded: result.isOnboarded,
+      );
+      await _bootstrapSession(result.patient.id, result.role);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: _friendlyError(e),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> loginWithEmailOtp({required String email, required String code}) async {
+    state = state.copyWith(status: AuthStatus.loading, error: null);
+    await _prepareFreshSession();
+    try {
+      final result = await _authService.emailOtpLogin(email: email, code: code);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         patient: result.patient,

@@ -1152,8 +1152,25 @@ class RemoteDoctorRepository
   }
 
   @override
+  Future<void> emailOtpLogin(String email, String code) async {
+    final response = await _client.dio.post(
+      DoctorApiEndpoints.verifyEmailOtp,
+      data: {'email': email.trim(), 'code': code, 'purpose': 'login'},
+    );
+    await _persistAuth(response.data as Map<String, dynamic>);
+  }
+
+  @override
   Future<void> sendOtp(String phone) async {
     await _client.dio.post(DoctorApiEndpoints.sendOtp, data: {'phone': phone});
+  }
+
+  @override
+  Future<void> sendEmailOtp(String email) async {
+    await _client.dio.post(
+      DoctorApiEndpoints.sendEmailOtp,
+      data: {'email': email.trim(), 'purpose': 'login'},
+    );
   }
 
   @override

@@ -115,12 +115,12 @@ export class AuthController {
   }
 
   async sendEmailOtp(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try { const { email } = emailOtpSchema.parse(req.body); res.json({ success: true, data: await authService.sendEmailOtp(email) }); }
+    try { const { email, purpose } = emailOtpSchema.parse(req.body); res.json({ success: true, data: await authService.sendEmailOtp(email, purpose) }); }
     catch (error) { next(error); }
   }
 
   async verifyEmailOtp(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try { const { email, code } = emailOtpSchema.required({ code: true }).parse(req.body); res.json({ success: true, data: await authService.verifyEmailOtp(email, code!) }); }
+    try { const { email, code, purpose } = emailOtpSchema.required({ code: true }).parse(req.body); res.json({ success: true, data: await authService.verifyEmailOtp(email, code!, purpose) }); }
     catch (error) { next(error); }
   }
 

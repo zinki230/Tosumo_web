@@ -17,6 +17,8 @@ class DoctorApiEndpoints {
   static const String refresh = '$auth/refresh';
   static const String logout = '$auth/logout';
   static const String sendOtp = '$auth/send-otp';
+  static const String sendEmailOtp = '$auth/send-email-otp';
+  static const String verifyEmailOtp = '$auth/verify-email-otp';
   static const String resendOtp = '$auth/resend-otp';
   static const String verifyOtp = '$auth/verify-otp';
   static const String resetPassword = '$auth/reset-password';

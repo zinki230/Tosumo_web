@@ -14,6 +14,8 @@ class ApiEndpoints {
   static const String authProfile = '$auth/profile';
   static const String sendOtp = '$auth/send-otp';
   static const String verifyOtp = '$auth/verify-otp';
+  static const String sendEmailOtp = '$auth/send-email-otp';
+  static const String verifyEmailOtp = '$auth/verify-email-otp';
   static const String checkPhone = '$auth/check-phone';
 
   static const String patients = '/api/v1/patients';
