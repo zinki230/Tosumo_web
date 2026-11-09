@@ -1,0 +1,57 @@
+name: Build Android APKs
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/doctor_flutter/**'
+      - 'apps/patient_flutter/**'
+      - '.github/workflows/build-android-apks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build ${{ matrix.app }} APK
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: doctor
+            directory: apps/doctor_flutter
+          - app: patient
+            directory: apps/patient_flutter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ matrix.app }}-${{ hashFiles(format('{0}/pubspec.lock', matrix.directory)) }}
+
+      - name: Install Flutter dependencies
+        working-directory: ${{ matrix.directory }}
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: ${{ matrix.directory }}
+        run: flutter build apk --release --dart-define=API_BASE_URL=https://tosumobackend-production.up.railway.app
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tosumo-${{ matrix.app }}-android-apk
+          path: ${{ matrix.directory }}/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
