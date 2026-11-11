@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://tosumo-web-backend-production.up.railway.app/api/:path*"
+      "destination": "https://tosumobackend-production.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
