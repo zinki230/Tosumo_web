@@ -13,6 +13,7 @@ export class AuditRepository {
     action?: string;
     entity?: string;
     userId?: string;
+    institutionId?: string;
     search?: string;
     from?: Date;
     to?: Date;
@@ -23,6 +24,7 @@ export class AuditRepository {
       ...(filters.action ? { action: filters.action } : {}),
       ...(filters.entity ? { entity: filters.entity } : {}),
       ...(filters.userId ? { userId: filters.userId } : {}),
+      ...(filters.institutionId ? { institutionId: filters.institutionId } : {}),
       ...(filters.from || filters.to
         ? { createdAt: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } }
         : {}),
@@ -61,6 +63,7 @@ export class AuditRepository {
 
   async create(data: {
     userId: string;
+    institutionId?: string;
     action: string;
     entity: string;
     entityId?: string;

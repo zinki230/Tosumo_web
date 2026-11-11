@@ -8,6 +8,7 @@ const ACTION_LABELS: Record<string, string> = {
   deactivate: 'Suspension de compte',
   verify_doctor: 'Médecin validé',
   reject_doctor: 'Médecin refusé',
+  create_doctor: 'Compte médecin créé',
   login: 'Connexion administrateur',
   logout: 'Déconnexion administrateur',
 }
@@ -110,13 +111,13 @@ export default function AuditLogs() {
   return <div className="mx-auto max-w-7xl p-5 md:p-8">
     <PageHeader
       title="Journal d’audit"
-      subtitle="Suivez les connexions et les opérations sensibles effectuées sur la plateforme."
+      subtitle="Consultez les opérations administratives récentes de votre établissement."
       actions={<button onClick={() => setRefreshKey((current) => current + 1)} disabled={loading} className="btn-secondary"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />Actualiser</button>}
     />
 
     <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div className="card flex items-center gap-3 p-4"><div className="rounded-xl bg-primary-50 p-3 text-primary-700"><ClipboardList size={20} /></div><div><p className="text-xs text-slate-500">Événements correspondants</p><p className="mt-0.5 text-2xl font-bold text-slate-900">{result.pagination.total.toLocaleString('fr-FR')}</p></div></div>
-      <div className="card flex items-center gap-3 p-4"><div className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><ShieldCheck size={20} /></div><div><p className="text-xs text-slate-500">Journal sécurisé</p><p className="mt-0.5 font-semibold text-slate-900">Accès administrateur</p></div></div>
+      <div className="card flex items-center gap-3 p-4"><div className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><ShieldCheck size={20} /></div><div><p className="text-xs text-slate-500">Journal sécurisé</p><p className="mt-0.5 font-semibold text-slate-900">Données de votre établissement</p></div></div>
       <div className="card flex items-center gap-3 p-4"><div className="rounded-xl bg-violet-50 p-3 text-violet-700"><Activity size={20} /></div><div><p className="text-xs text-slate-500">Affichage</p><p className="mt-0.5 font-semibold text-slate-900">50 événements par page</p></div></div>
     </div>
 

@@ -2,8 +2,10 @@ import { Response, NextFunction } from 'express';
 import { InstitutionService } from './institution.service';
 import { AuthenticatedRequest } from '@shared/types';
 import prisma from '@shared/database/prisma';
+import { AuditService } from '../audit/audit.service';
 
 const institutionService = new InstitutionService();
+const auditService = new AuditService();
 
 export class InstitutionController {
   async getAll(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -31,6 +33,15 @@ export class InstitutionController {
   async createDoctor(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const result = await institutionService.createDoctor(req.user!.userId, req.body);
+      await auditService.logRequest(req, {
+        userId: req.user!.userId,
+        institutionId: result.institutionId,
+        action: 'create_doctor',
+        entity: 'doctor',
+        entityId: result.doctor.id,
+        description: `Création du compte médecin Dr ${result.doctor.firstName} ${result.doctor.lastName}`,
+        metadata: { specialty: result.doctor.specialty },
+      });
       res.status(201).json({ 
         success: true, 
         data: result.doctor,

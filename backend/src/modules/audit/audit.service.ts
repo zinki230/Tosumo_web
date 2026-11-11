@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '@shared/types';
 
 export interface AuditLogInput {
   userId: string;
+  institutionId?: string;
   action: string;
   entity: string;
   entityId?: string;
@@ -21,6 +22,7 @@ export class AuditService {
     action?: string;
     entity?: string;
     userId?: string;
+    institutionId?: string;
     search?: string;
     from?: Date;
     to?: Date;

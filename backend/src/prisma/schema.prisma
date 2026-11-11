@@ -630,6 +630,7 @@ model Notification {
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String
+  institutionId String?
   action     String   // create | read | update | delete | grant | revoke | login | logout
   entity     String   // e.g., appointment, medical_record, access
   entityId   String?  // ID of affected entity
@@ -640,6 +641,8 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id])
+
+  @@index([institutionId, createdAt])
 }
 
 // ============================================================

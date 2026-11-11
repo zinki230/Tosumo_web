@@ -121,7 +121,7 @@ router.get('/appointments', authenticate, authorize(...dashboardRoles), async (r
 });
 
 // Get audit logs (admin)
-router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const queryString = (key: string) => typeof req.query[key] === 'string' ? (req.query[key] as string).trim() : '';
     const page = Math.max(1, Math.floor(Number(queryString('page')) || 1));
@@ -130,6 +130,9 @@ router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER
     const toValue = queryString('to');
     const from = fromValue ? new Date(`${fromValue}T00:00:00.000Z`) : undefined;
     const to = toValue ? new Date(`${toValue}T23:59:59.999Z`) : undefined;
+    if (req.user!.role === UserRole.INSTITUTION_ADMIN && !req.user!.institutionId) {
+      return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+    }
     if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) {
       return res.status(400).json({ success: false, message: 'Invalid audit date filter' });
     }
@@ -137,6 +140,7 @@ router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER
       action: queryString('action') || undefined,
       entity: queryString('entity') || undefined,
       userId: queryString('userId') || undefined,
+      institutionId: req.user!.role === UserRole.INSTITUTION_ADMIN ? req.user!.institutionId : undefined,
       search: queryString('search').slice(0, 120) || undefined,
       from,
       to,

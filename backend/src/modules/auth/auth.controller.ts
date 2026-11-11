@@ -22,9 +22,10 @@ export class AuthController {
     try {
       const input = loginSchema.parse(req.body);
       const result = await authService.login(input);
-      if (result.user.role === 'admin' || result.user.role === 'superadmin') {
+      if (result.user.role === 'admin' || result.user.role === 'superadmin' || result.user.role === 'institution_admin') {
         await auditService.logRequest(req, {
           userId: result.user.id,
+          institutionId: result.user.role === 'institution_admin' ? result.user.institutionId ?? undefined : undefined,
           action: 'login',
           entity: 'auth',
           description: 'Connexion à l’espace d’administration',
@@ -60,9 +61,10 @@ export class AuthController {
   async logout(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       await authService.logout(req.user!.userId);
-      if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+      if (req.user!.role === 'admin' || req.user!.role === 'superadmin' || req.user!.role === 'institution_admin') {
         await auditService.logRequest(req, {
           userId: req.user!.userId,
+          institutionId: req.user!.role === 'institution_admin' ? req.user!.institutionId : undefined,
           action: 'logout',
           entity: 'auth',
           description: 'Déconnexion de l’espace d’administration',

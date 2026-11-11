@@ -44,6 +44,12 @@ function RequireSystemAdmin({ children }: { children: React.ReactNode }) {
   return role === 'admin' || role === 'superadmin' ? <>{children}</> : <Navigate to="/" replace />
 }
 
+function RequireAuditAccess({ children }: { children: React.ReactNode }) {
+  let role = ''
+  try { role = JSON.parse(localStorage.getItem('tosumo_user') ?? '{}')?.role ?? '' } catch { role = '' }
+  return ['admin', 'superadmin', 'institution_admin'].includes(role) ? <>{children}</> : <Navigate to="/" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -68,7 +74,7 @@ export default function App() {
           <Route path="patients/:id" element={<PatientDetail />} />
           <Route path="comptes" element={<RequireSystemAdmin><AdminUsers /></RequireSystemAdmin>} />
           <Route path="rendez-vous" element={<RequireSystemAdmin><AdminAppointments /></RequireSystemAdmin>} />
-          <Route path="journal" element={<RequireSystemAdmin><AuditLogs /></RequireSystemAdmin>} />
+          <Route path="journal" element={<RequireAuditAccess><AuditLogs /></RequireAuditAccess>} />
           <Route path="verifications" element={<RequireSystemAdmin><DoctorApprovals /></RequireSystemAdmin>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

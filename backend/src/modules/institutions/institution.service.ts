@@ -151,6 +151,7 @@ export class InstitutionService {
     }
 
     return {
+      institutionId,
       doctor: {
         id: result.doctor.id,
         firstName: result.doctor.firstName,

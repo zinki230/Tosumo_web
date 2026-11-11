@@ -34,6 +34,7 @@ export default function Layout() {
   let user: { role?: string; email?: string; phone?: string } = {}
   try { user = JSON.parse(localStorage.getItem('tosumo_user') ?? '{}') } catch { user = {} }
   const isSystemAdmin = user.role === 'admin' || user.role === 'superadmin'
+  const canViewAudit = isSystemAdmin || user.role === 'institution_admin'
 
   async function handleLogout() {
     try { await authApi.logoutRemote() } catch { authApi.logout() }
@@ -67,7 +68,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.filter((item) => !item.adminOnly || isSystemAdmin).map(({ to, label, icon: Icon }) => (
+          {NAV.filter((item) => !item.adminOnly || isSystemAdmin || (item.to === '/journal' && canViewAudit)).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
