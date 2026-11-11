@@ -15,6 +15,7 @@ import {
   BadgeCheck,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { authApi } from '../services/api'
 
 const NAV = [
   { to: '/', label: 'Vue générale', icon: LayoutDashboard },
@@ -34,8 +35,8 @@ export default function Layout() {
   try { user = JSON.parse(localStorage.getItem('tosumo_user') ?? '{}') } catch { user = {} }
   const isSystemAdmin = user.role === 'admin' || user.role === 'superadmin'
 
-  function handleLogout() {
-    localStorage.removeItem('tosumo_token')
+  async function handleLogout() {
+    try { await authApi.logoutRemote() } catch { authApi.logout() }
     navigate('/login')
   }
 

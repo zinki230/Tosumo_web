@@ -201,8 +201,16 @@ export interface AuditLog {
   entity: string
   entityId?: string | null
   description: string
+  metadata?: Record<string, unknown> | null
+  ipAddress?: string | null
+  userAgent?: string | null
   createdAt: string
   user?: { email?: string | null; role?: string }
+}
+
+export interface AuditLogResult {
+  logs: AuditLog[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
 }
 
 const unwrapAdminData = <T,>(response: { data?: { data?: T } }): T => response.data?.data as T
@@ -221,8 +229,8 @@ export const adminApi = {
     client.put(`/admin/doctors/${id}/verify`, { isVerified, rejectionReason }),
   appointments: async (params?: { status?: string; startDate?: string; endDate?: string }) =>
     (unwrapAdminData(await client.get('/admin/appointments', { params })) as AdminAppointment[]) ?? [],
-  auditLogs: async (params?: { action?: string; entity?: string }) =>
-    (unwrapAdminData(await client.get('/admin/audit-logs', { params })) as AuditLog[]) ?? [],
+  auditLogs: async (params?: { action?: string; entity?: string; search?: string; from?: string; to?: string; page?: number; limit?: number }) =>
+    (unwrapAdminData(await client.get('/admin/audit-logs', { params })) as AuditLogResult),
 }
 
 // ── Institutions ─────────────────────────────────────────────────────────────
@@ -295,6 +303,13 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem('tosumo_token')
     localStorage.removeItem('tosumo_user')
+  },
+  logoutRemote: async () => {
+    try {
+      await client.post('/auth/logout')
+    } finally {
+      authApi.logout()
+    }
   },
   getUser: (): AuthUser | null => {
     const raw = localStorage.getItem('tosumo_user')

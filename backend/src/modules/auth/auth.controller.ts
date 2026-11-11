@@ -2,8 +2,10 @@ import { Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { AuthenticatedRequest } from '@shared/types';
 import { registerSchema, loginSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, emailOtpSchema, changePasswordSchema, resetPasswordSchema, checkPhoneSchema, registerDoctorSchema, registerInstitutionSchema } from './auth.validation';
+import { AuditService } from '../audit/audit.service';
 
 const authService = new AuthService();
+const auditService = new AuditService();
 
 export class AuthController {
   async register(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -20,6 +22,15 @@ export class AuthController {
     try {
       const input = loginSchema.parse(req.body);
       const result = await authService.login(input);
+      if (result.user.role === 'admin' || result.user.role === 'superadmin') {
+        await auditService.logRequest(req, {
+          userId: result.user.id,
+          action: 'login',
+          entity: 'auth',
+          description: 'Connexion à l’espace d’administration',
+          metadata: { role: result.user.role },
+        });
+      }
       res.json({ success: true, message: 'Login successful', data: result });
     } catch (error) {
       next(error);
@@ -49,6 +60,15 @@ export class AuthController {
   async logout(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       await authService.logout(req.user!.userId);
+      if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+        await auditService.logRequest(req, {
+          userId: req.user!.userId,
+          action: 'logout',
+          entity: 'auth',
+          description: 'Déconnexion de l’espace d’administration',
+          metadata: { role: req.user!.role },
+        });
+      }
       res.json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
       next(error);

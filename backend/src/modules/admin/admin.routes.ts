@@ -39,12 +39,13 @@ router.put('/users/:id/toggle-status', authenticate, authorize(UserRole.ADMIN, U
       select: { id: true, email: true, phone: true, role: true, isActive: true },
     });
 
-    await auditService.log({
+    await auditService.logRequest(req, {
       userId: req.user!.userId,
       action: user.isActive ? 'deactivate' : 'activate',
       entity: 'user',
       entityId: req.params.id as string,
-      description: `${user.isActive ? 'Deactivated' : 'Activated'} user ${updated.email}`,
+      description: `${user.isActive ? 'Suspension' : 'Réactivation'} du compte ${updated.email}`,
+      metadata: { previousStatus: user.isActive ? 'active' : 'suspended', newStatus: updated.isActive ? 'active' : 'suspended' },
     });
 
     res.json({ success: true, data: updated });
@@ -57,12 +58,16 @@ router.put('/doctors/:id/verify', authenticate, authorize(UserRole.ADMIN, UserRo
     const { isVerified, rejectionReason } = req.body;
     const doctor = await doctorService.verifyDoctor(req.params.id as string, isVerified, rejectionReason);
 
-    await auditService.log({
+    await auditService.logRequest(req, {
       userId: req.user!.userId,
       action: isVerified ? 'verify_doctor' : 'reject_doctor',
       entity: 'doctor',
       entityId: req.params.id as string,
-      description: `${isVerified ? 'Verified' : 'Rejected'} doctor ${doctor.firstName} ${doctor.lastName}`,
+      description: `${isVerified ? 'Validation' : 'Refus'} du dossier de Dr ${doctor.firstName} ${doctor.lastName}`,
+      metadata: {
+        isVerified: Boolean(isVerified),
+        ...(typeof rejectionReason === 'string' && rejectionReason.trim() ? { rejectionReason: rejectionReason.trim().slice(0, 500) } : {}),
+      },
     });
 
     res.json({ success: true, data: doctor });
@@ -118,9 +123,27 @@ router.get('/appointments', authenticate, authorize(...dashboardRoles), async (r
 // Get audit logs (admin)
 router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const filters = req.query as { action?: string; entity?: string; userId?: string };
-    const logs = await auditService.getAllLogs(filters);
-    res.json({ success: true, data: logs });
+    const queryString = (key: string) => typeof req.query[key] === 'string' ? (req.query[key] as string).trim() : '';
+    const page = Math.max(1, Math.floor(Number(queryString('page')) || 1));
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(queryString('limit')) || 50)));
+    const fromValue = queryString('from');
+    const toValue = queryString('to');
+    const from = fromValue ? new Date(`${fromValue}T00:00:00.000Z`) : undefined;
+    const to = toValue ? new Date(`${toValue}T23:59:59.999Z`) : undefined;
+    if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) {
+      return res.status(400).json({ success: false, message: 'Invalid audit date filter' });
+    }
+    const result = await auditService.getAllLogs({
+      action: queryString('action') || undefined,
+      entity: queryString('entity') || undefined,
+      userId: queryString('userId') || undefined,
+      search: queryString('search').slice(0, 120) || undefined,
+      from,
+      to,
+      page,
+      limit,
+    });
+    res.json({ success: true, data: result });
   } catch (error) { next(error); }
 });
 
