@@ -9,19 +9,30 @@ import {
   Menu,
   X,
   Activity,
+  CalendarDays,
+  ShieldCheck,
+  ClipboardList,
+  BadgeCheck,
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const NAV = [
-  { to: '/',        label: 'Tableau de bord', icon: LayoutDashboard },
-  { to: '/suivi',   label: 'Suivi patient',   icon: GitBranch },
-  { to: '/medecins',label: 'Médecins',         icon: Stethoscope },
-  { to: '/patients',label: 'Patients',         icon: Users },
+  { to: '/', label: 'Vue générale', icon: LayoutDashboard },
+  { to: '/suivi', label: 'Suivi patient', icon: GitBranch },
+  { to: '/medecins', label: 'Médecins', icon: Stethoscope },
+  { to: '/patients', label: 'Patients', icon: Users },
+  { to: '/rendez-vous', label: 'Rendez-vous', icon: CalendarDays, adminOnly: true },
+  { to: '/comptes', label: 'Comptes', icon: ShieldCheck, adminOnly: true },
+  { to: '/verifications', label: 'Vérifier les médecins', icon: BadgeCheck, adminOnly: true },
+  { to: '/journal', label: 'Journal d’audit', icon: ClipboardList, adminOnly: true },
 ]
 
 export default function Layout() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  let user: { role?: string; email?: string; phone?: string } = {}
+  try { user = JSON.parse(localStorage.getItem('tosumo_user') ?? '{}') } catch { user = {} }
+  const isSystemAdmin = user.role === 'admin' || user.role === 'superadmin'
 
   function handleLogout() {
     localStorage.removeItem('tosumo_token')
@@ -49,13 +60,13 @@ export default function Layout() {
           </div>
           <div>
             <p className="text-sm font-bold text-slate-900 leading-tight">TOSUMO</p>
-            <p className="text-[11px] text-slate-400 leading-tight">Gestion Hospitalière</p>
+              <p className="text-[11px] text-slate-400 leading-tight">Administration santé</p>
           </div>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {NAV.filter((item) => !item.adminOnly || isSystemAdmin).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -109,9 +120,9 @@ export default function Layout() {
           <div className="flex-1" />
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-bold">
-              A
+              {(user.email ?? user.phone ?? 'A').slice(0, 1).toUpperCase()}
             </div>
-            <span className="hidden sm:block text-sm font-medium text-slate-700">Admin</span>
+            <span className="hidden sm:block text-sm font-medium text-slate-700">{user.email ?? (isSystemAdmin ? 'Administrateur' : 'Centre de santé')}</span>
           </div>
         </header>
 

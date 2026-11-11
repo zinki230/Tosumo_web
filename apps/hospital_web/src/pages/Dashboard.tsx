@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Stethoscope, Users, CalendarCheck, GitBranch, TrendingUp, Clock } from 'lucide-react'
-import { trackingApi, type DashboardStats, type TrackingEntry } from '../services/api'
+import { Stethoscope, Users, CalendarCheck, GitBranch, TrendingUp, Clock, ShieldCheck, UserRoundPlus, BadgeCheck } from 'lucide-react'
+import { adminApi, trackingApi, type DashboardStats, type TrackingEntry } from '../services/api'
 import {
   StatCard,
   PageHeader,
@@ -18,15 +18,19 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<TrackingEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [adminStats, setAdminStats] = useState<Awaited<ReturnType<typeof adminApi.dashboard>> | null>(null)
+  const isSystemAdmin = ['admin', 'superadmin'].includes((() => { try { return JSON.parse(localStorage.getItem('tosumo_user') ?? '{}').role } catch { return '' } })())
 
   useEffect(() => {
     ;(async () => {
       try {
-        const [s, tracking] = await Promise.all([
+        const [s, tracking, summary] = await Promise.all([
           trackingApi.getDashboardStats(),
           trackingApi.getAll(),
+          isSystemAdmin ? adminApi.dashboard().catch(() => null) : Promise.resolve(null),
         ])
         setStats(s)
+        setAdminStats(summary)
         // 5 most-recently-seen relationships
         const sorted = [...tracking].sort((a, b) => {
           const da = a.lastAppointmentDate ? new Date(a.lastAppointmentDate).getTime() : 0
@@ -41,7 +45,7 @@ export default function Dashboard() {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [isSystemAdmin])
 
   if (loading) return <div className="p-8"><PageLoader /></div>
 
@@ -55,14 +59,26 @@ export default function Dashboard() {
       {error && <div className="mb-6"><ErrorBanner message={error} /></div>}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 gap-4 mb-8 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard label="Médecins" value={stats?.totalDoctors ?? '—'} icon={Stethoscope} color="blue" />
         <StatCard label="Patients" value={stats?.totalPatients ?? '—'} icon={Users} color="green" />
         <StatCard label="Rendez-vous" value={stats?.totalAppointments ?? '—'} icon={CalendarCheck} color="purple" />
         <StatCard label="Aujourd'hui" value={stats?.todayAppointments ?? '—'} icon={Clock} color="orange" sub="rendez-vous" />
         <StatCard label="Vérifiés" value={stats?.verifiedPatients ?? '—'} icon={TrendingUp} color="green" sub="patients" />
         <StatCard label="Suivis actifs" value={stats?.activeRelationships ?? '—'} icon={GitBranch} color="blue" sub="paires" />
+        {isSystemAdmin && <>
+          <StatCard label="Comptes actifs" value={adminStats?.stats.totalUsers ?? '—'} icon={ShieldCheck} color="purple" sub="utilisateurs" />
+          <StatCard label="À vérifier" value={adminStats?.stats.pendingVerifications ?? '—'} icon={BadgeCheck} color="orange" sub="dossiers médecins" />
+        </>}
       </div>
+
+      {isSystemAdmin && <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        {[
+          { href: '/comptes', icon: UserRoundPlus, title: 'Gérer les comptes', detail: 'Consulter et contrôler les accès utilisateurs' },
+          { href: '/verifications', icon: BadgeCheck, title: 'Valider les médecins', detail: `${adminStats?.stats.pendingVerifications ?? 0} dossier(s) en attente` },
+          { href: '/rendez-vous', icon: CalendarCheck, title: 'Suivre les rendez-vous', detail: 'Consulter et exporter l’activité des consultations' },
+        ].map(({ href, icon: Icon, title, detail }) => <Link key={href} to={href} className="card group flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:border-primary-200"><span className="rounded-xl bg-primary-50 p-3 text-primary-700"><Icon size={19} /></span><span><span className="block text-sm font-semibold text-slate-900 group-hover:text-primary-700">{title}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></span></Link>)}
+      </div>}
 
       {/* Recent tracking table */}
       <div className="card overflow-hidden">

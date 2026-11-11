@@ -27,12 +27,16 @@ router.get('/users', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN
 // Toggle user active status
 router.put('/users/:id/toggle-status', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
+    if (req.user!.userId === req.params.id) {
+      return res.status(400).json({ success: false, message: 'You cannot change your own access status' });
+    }
     const user = await prisma.user.findUnique({ where: { id: req.params.id as string } });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const updated = await prisma.user.update({
       where: { id: req.params.id as string },
       data: { isActive: !user.isActive },
+      select: { id: true, email: true, phone: true, role: true, isActive: true },
     });
 
     await auditService.log({
@@ -72,6 +76,10 @@ router.get('/doctors', authenticate, authorize(...dashboardRoles), async (req: A
     const where: Record<string, unknown> = {};
     if (isVerified !== undefined) where.isVerified = isVerified === 'true';
     if (specialty) where.specialty = specialty;
+    if (req.user!.role === UserRole.INSTITUTION_ADMIN) {
+      if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+      where.institutions = { some: { institutionId: req.user!.institutionId } };
+    }
 
     const doctors = await prisma.doctor.findMany({
       where,
@@ -89,7 +97,13 @@ router.get('/appointments', authenticate, authorize(...dashboardRoles), async (r
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (startDate && endDate) {
-      where.appointmentDate = { gte: new Date(startDate as string), lte: new Date(endDate as string) };
+      const inclusiveEndDate = new Date(endDate as string);
+      inclusiveEndDate.setHours(23, 59, 59, 999);
+      where.appointmentDate = { gte: new Date(startDate as string), lte: inclusiveEndDate };
+    }
+    if (req.user!.role === UserRole.INSTITUTION_ADMIN) {
+      if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+      where.institutionId = req.user!.institutionId;
     }
 
     const appointments = await prisma.appointment.findMany({
@@ -111,7 +125,7 @@ router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER
 });
 
 // Dashboard stats (admin)
-router.get('/dashboard', authenticate, authorize(...dashboardRoles), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/dashboard', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const [
       totalUsers,

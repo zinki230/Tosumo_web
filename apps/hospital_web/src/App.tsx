@@ -10,6 +10,10 @@ import DoctorCreate from './pages/DoctorCreate'
 import DoctorDetail from './pages/DoctorDetail'
 import PatientsList from './pages/PatientsList'
 import PatientDetail from './pages/PatientDetail'
+import AdminUsers from './pages/AdminUsers'
+import AdminAppointments from './pages/AdminAppointments'
+import AuditLogs from './pages/AuditLogs'
+import DoctorApprovals from './pages/DoctorApprovals'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('tosumo_token')
@@ -34,6 +38,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RequireSystemAdmin({ children }: { children: React.ReactNode }) {
+  let role = ''
+  try { role = JSON.parse(localStorage.getItem('tosumo_user') ?? '{}')?.role ?? '' } catch { role = '' }
+  return role === 'admin' || role === 'superadmin' ? <>{children}</> : <Navigate to="/" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -56,6 +66,10 @@ export default function App() {
           <Route path="medecins/:id" element={<DoctorDetail />} />
           <Route path="patients" element={<PatientsList />} />
           <Route path="patients/:id" element={<PatientDetail />} />
+          <Route path="comptes" element={<RequireSystemAdmin><AdminUsers /></RequireSystemAdmin>} />
+          <Route path="rendez-vous" element={<RequireSystemAdmin><AdminAppointments /></RequireSystemAdmin>} />
+          <Route path="journal" element={<RequireSystemAdmin><AuditLogs /></RequireSystemAdmin>} />
+          <Route path="verifications" element={<RequireSystemAdmin><DoctorApprovals /></RequireSystemAdmin>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

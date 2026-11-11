@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { UserPlus, Stethoscope, Clock, CheckCircle, XCircle } from 'lucide-react'
-import { institutionsApi } from '../services/api'
+import { adminApi, institutionsApi } from '../services/api'
 import { PageHeader, PageLoader, ErrorBanner, Avatar, Badge } from '../components/ui'
 
 interface Doctor {
@@ -25,6 +25,7 @@ export default function DoctorsList() {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const isSystemAdmin = ['admin', 'superadmin'].includes((() => { try { return JSON.parse(localStorage.getItem('tosumo_user') ?? '{}').role } catch { return '' } })())
 
   useEffect(() => {
     loadDoctors()
@@ -32,8 +33,21 @@ export default function DoctorsList() {
 
   const loadDoctors = async () => {
     try {
-      const data = await institutionsApi.getDoctors()
-      setDoctors(data)
+      if (isSystemAdmin) {
+        const data = await adminApi.doctors()
+        setDoctors(data.map((doctor) => ({
+          ...doctor,
+          fullName: `${doctor.firstName} ${doctor.lastName}`.trim(),
+          phone: doctor.user?.phone ?? '',
+          email: doctor.user?.email ?? '',
+          isActive: doctor.user?.isActive ?? false,
+          lastLoginAt: null,
+          role: 'Médecin',
+          isPrimary: false,
+        })))
+      } else {
+        setDoctors(await institutionsApi.getDoctors())
+      }
     } catch (err: any) {
       setError('Impossible de charger la liste des médecins')
       console.error(err)
@@ -53,14 +67,14 @@ export default function DoctorsList() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <PageHeader title="Médecins" subtitle="Gérez les comptes des médecins de votre établissement" />
-        <Link
+        <PageHeader title="Médecins" subtitle={isSystemAdmin ? 'Consultez les praticiens enregistrés sur TOSUMO.' : 'Gérez les comptes des médecins de votre établissement'} />
+        {!isSystemAdmin && <Link
           to="/medecins/nouveau"
           className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
         >
           <UserPlus className="w-4 h-4" />
           Nouveau médecin
-        </Link>
+        </Link>}
       </div>
 
       {error && (

@@ -1,89 +1,50 @@
-# TOSUMO — Application Web Hospitalière
+# TOSUMO — Console d’administration
 
-Application web de gestion de suivi patient pour les centres hospitaliers TOSUMO.
+Console web sécurisée pour superviser les applications patient et médecin ainsi que le portail web TOSUMO. Les données sont chargées depuis l’API partagée de production.
 
-## Fonctionnalité principale
+## Fonctionnalités
 
-**Suivi médecin → patient** : savoir en temps réel quel médecin suit quel patient,
-avec historique des rendez-vous, statut, prochain RDV.
+- Tableau de bord des patients, médecins, rendez-vous et validations en attente.
+- Recherche de patients et médecins, profils et relations de suivi.
+- Validation ou retrait de validation des dossiers médecins.
+- Consultation et suspension/réactivation des comptes patients, médecins et administrateurs.
+- Filtrage et export CSV des rendez-vous.
+- Journal d’audit des actions administratives.
+- Accès adapté au rôle d’administrateur système ou d’administrateur d’établissement.
 
 ## Pages
 
 | Route | Description |
-|-------|-------------|
+| --- | --- |
 | `/login` | Connexion administrateur |
-| `/` | Tableau de bord — stats globales + activité récente |
-| `/suivi` | Table complète médecin ↔ patient (filtres, tri) |
-| `/medecins` | Liste des médecins avec nb de patients |
-| `/medecins/:id` | Profil médecin + liste de ses patients |
-| `/patients` | Liste des patients avec médecin traitant |
-| `/patients/:id` | Profil patient + médecins consultés + historique RDV |
+| `/` | Statistiques et activité récente |
+| `/suivi` | Suivi médecin ↔ patient |
+| `/medecins` | Répertoire des médecins |
+| `/patients` | Répertoire des patients |
+| `/comptes` | Gestion des comptes (admin système) |
+| `/verifications` | Validation des médecins (admin système) |
+| `/rendez-vous` | Consultations et export CSV (admin système) |
+| `/journal` | Journal d’audit (admin système) |
 
-## Lancer l'app
+## Développement
 
-### Prérequis
-
-- Node.js 18+
-- Backend TOSUMO démarré sur `http://localhost:3000`
-
-### Installation & démarrage
+Prérequis : Node.js 18 ou plus récent.
 
 ```bash
-cd apps/hospital_web
 npm install
 npm run dev
 ```
 
-Ouvrir : http://localhost:5173
+Pour exécuter la vérification et le build de production :
 
-### Compte de test
-
-```
-Téléphone : +237691000101
-Mot de passe : Demo@1234
+```bash
+npm run build
 ```
 
-## Architecture
+L’API locale est configurable avec `VITE_API_BASE_URL`. En production, la console utilise l’API Railway commune aux applications TOSUMO.
 
-```
-src/
-├── services/
-│   └── api.ts          # Client Axios + mappers + tous les appels API
-├── components/
-│   ├── Layout.tsx       # Sidebar + topbar
-│   └── ui.tsx           # Composants partagés (Avatar, Badge, StatCard…)
-├── pages/
-│   ├── Login.tsx
-│   ├── Dashboard.tsx
-│   ├── TrackingPage.tsx  # Page suivi (fonctionnalité principale)
-│   ├── DoctorsList.tsx
-│   ├── DoctorDetail.tsx
-│   ├── PatientsList.tsx
-│   └── PatientDetail.tsx
-└── App.tsx              # Router + RequireAuth guard
-```
+## Déploiement Vercel
 
-## Connexion au backend
+Ce dépôt contient l’application à sa racine. Vercel utilise Vite, la commande `npm run build` et le dossier de sortie `dist`. Les routes de l’application web sont réécrites vers `index.html` et `/api/*` est redirigé vers le backend Railway.
 
-Le proxy Vite redirige `/api/*` vers `http://localhost:3000`.
-Pour changer l'URL backend, modifier `vite.config.ts` :
-
-```ts
-proxy: {
-  '/api': {
-    target: 'http://votre-backend:3000',
-    changeOrigin: true,
-  },
-},
-```
-
-## Comment fonctionne le suivi
-
-La relation médecin → patient est déduite des **rendez-vous** (table `Appointment`).
-Pour chaque paire `(doctorId, patientId)` on calcule :
-- le dernier rendez-vous
-- le prochain rendez-vous planifié
-- le nombre total de rendez-vous
-- le statut du dernier rendez-vous
-
-Le "médecin traitant" d'un patient est celui qui a le **plus de rendez-vous** avec lui.
+Ne pas ajouter de mot de passe, jeton ou URI privée de base de données au dépôt.

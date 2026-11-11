@@ -1,12 +1,11 @@
 import axios from 'axios'
 
 // ── Configuration de l'URL API ──────────────────────────────────────────────
-const PRODUCTION_API_BASE_URL = 'https://tosumo-web-backend-production.up.railway.app/api/v1'
+const PRODUCTION_API_BASE_URL = '/api/v1'
 
 const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    // Keep the hospital portal on the shared production API, even if a Vercel
-    // project's stale VITE_API_BASE_URL points at another Railway service.
+    // Use the Vercel rewrite so API requests stay same-origin and avoid browser CORS issues.
     return PRODUCTION_API_BASE_URL
   }
 
@@ -142,6 +141,72 @@ export interface AuthUser {
   role: 'patient' | 'doctor' | 'institution_admin' | 'admin' | 'superadmin' | string
   institutionId?: string
   institutionName?: string
+}
+
+export interface AdminUser {
+  id: string
+  email?: string | null
+  phone?: string | null
+  role: string
+  isActive: boolean
+  isEmailVerified: boolean
+  lastLoginAt?: string | null
+  createdAt: string
+}
+
+export interface AdminDoctor {
+  id: string
+  firstName: string
+  lastName: string
+  specialty: string
+  licenseNumber: string
+  isVerified: boolean
+  verifiedAt?: string | null
+  createdAt: string
+  user?: { email?: string | null; phone?: string | null; isActive?: boolean }
+}
+
+export interface AdminAppointment {
+  id: string
+  appointmentDate: string
+  startTime?: string
+  endTime?: string
+  status: string
+  type?: string
+  reason?: string
+  patient?: { firstName?: string; lastName?: string; user?: { email?: string | null } }
+  doctor?: { firstName?: string; lastName?: string; specialty?: string }
+  institution?: { name?: string }
+}
+
+export interface AuditLog {
+  id: string
+  action: string
+  entity: string
+  entityId?: string | null
+  description: string
+  createdAt: string
+  user?: { email?: string | null; role?: string }
+}
+
+const unwrapAdminData = <T,>(response: { data?: { data?: T } }): T => response.data?.data as T
+
+export const adminApi = {
+  dashboard: async () => unwrapAdminData(await client.get('/admin/dashboard')) as {
+    stats: { totalUsers: number; totalPatients: number; totalDoctors: number; totalAppointments: number; pendingVerifications: number }
+    revenue: number
+  },
+  users: async () => (unwrapAdminData(await client.get('/admin/users')) as AdminUser[]) ?? [],
+  toggleUserStatus: async (id: string) => client.put(`/admin/users/${id}/toggle-status`),
+  doctors: async (verified?: boolean) => (unwrapAdminData(await client.get('/admin/doctors', {
+    params: verified === undefined ? {} : { isVerified: verified },
+  })) as AdminDoctor[]) ?? [],
+  verifyDoctor: async (id: string, isVerified: boolean, rejectionReason?: string) =>
+    client.put(`/admin/doctors/${id}/verify`, { isVerified, rejectionReason }),
+  appointments: async (params?: { status?: string; startDate?: string; endDate?: string }) =>
+    (unwrapAdminData(await client.get('/admin/appointments', { params })) as AdminAppointment[]) ?? [],
+  auditLogs: async (params?: { action?: string; entity?: string }) =>
+    (unwrapAdminData(await client.get('/admin/audit-logs', { params })) as AuditLog[]) ?? [],
 }
 
 // ── Institutions ─────────────────────────────────────────────────────────────
