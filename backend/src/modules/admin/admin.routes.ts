@@ -7,11 +7,36 @@ import { AuditService } from '../audit/audit.service';
 import { DoctorService } from '../doctors/doctor.service';
 import { authorize } from '@shared/middleware/auth';
 import { UserRole } from '@shared/types';
+import { AuthService } from '../auth/auth.service';
+import { createSystemAdminSchema } from './admin.validation';
 
 const router = Router();
 const auditService = new AuditService();
+const authService = new AuthService();
 const doctorService = new DoctorService();
 const dashboardRoles = [UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.INSTITUTION_ADMIN];
+
+router.get('/system-admin-bootstrap', authenticate, authorize(UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+    const count = await prisma.user.count({ where: { role: { in: [UserRole.ADMIN, UserRole.SUPERADMIN] } } });
+    res.json({ success: true, data: { available: count === 0 } });
+  } catch (error) { next(error); }
+});
+
+router.post('/system-admin-bootstrap', authenticate, authorize(UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+    const input = createSystemAdminSchema.parse(req.body);
+    const user = await authService.bootstrapSystemAdmin({
+      ...input,
+      createdByUserId: req.user!.userId,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')?.slice(0, 512),
+    });
+    res.status(201).json({ success: true, data: user, message: 'System administrator account created' });
+  } catch (error) { next(error); }
+});
 
 // Get all users
 router.get('/users', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -189,6 +214,9 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
 
     const isInstitutionAdmin = req.user!.role === 'institution_admin';
     const institutionId = isInstitutionAdmin ? req.user!.institutionId : undefined;
+    if (isInstitutionAdmin && !institutionId) {
+      return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+    }
 
     // Base queries with institution filtering when needed
     const doctorWhere = institutionId ? {
@@ -198,17 +226,29 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
 
     const patientWhere = institutionId ? {
       deletedAt: null,
-      appointments: { some: { institutionId, deletedAt: null } }
+      appointments: { some: {
+        deletedAt: null,
+        OR: [
+          { institutionId },
+          { doctor: { institutions: { some: { institutionId } } } },
+        ],
+      } }
     } : { deletedAt: null };
 
     const appointmentWhere = institutionId ? {
       deletedAt: null,
-      institutionId
+      OR: [
+        { institutionId },
+        { doctor: { institutions: { some: { institutionId } } } },
+      ],
     } : { deletedAt: null };
 
     const todayAppointmentWhere = institutionId ? {
       deletedAt: null,
-      institutionId,
+      OR: [
+        { institutionId },
+        { doctor: { institutions: { some: { institutionId } } } },
+      ],
       appointmentDate: { gte: today, lt: tomorrow }
     } : {
       deletedAt: null,
@@ -218,7 +258,13 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
     const verifiedPatientWhere = institutionId ? {
       deletedAt: null,
       isVerified: true,
-      appointments: { some: { institutionId, deletedAt: null } }
+      appointments: { some: {
+        deletedAt: null,
+        OR: [
+          { institutionId },
+          { doctor: { institutions: { some: { institutionId } } } },
+        ],
+      } }
     } : {
       deletedAt: null,
       isVerified: true

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ClipboardList,
   BadgeCheck,
+  UserRoundPlus,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { authApi } from '../services/api'
@@ -26,6 +27,7 @@ const NAV = [
   { to: '/comptes', label: 'Comptes', icon: ShieldCheck, adminOnly: true },
   { to: '/verifications', label: 'Vérifier les médecins', icon: BadgeCheck, adminOnly: true },
   { to: '/journal', label: 'Journal d’audit', icon: ClipboardList, adminOnly: true },
+  { to: '/creer-admin', label: 'Créer le compte admin', icon: UserRoundPlus, institutionAdminOnly: true },
 ]
 
 export default function Layout() {
@@ -68,7 +70,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.filter((item) => !item.adminOnly || isSystemAdmin || (item.to === '/journal' && canViewAudit)).map(({ to, label, icon: Icon }) => (
+          {NAV.filter((item) => (!item.adminOnly || isSystemAdmin || (item.to === '/journal' && canViewAudit)) && (!item.institutionAdminOnly || user.role === 'institution_admin')).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { DoctorService } from './doctor.service';
 import { AuthenticatedRequest } from '@shared/types';
+import { ForbiddenError } from '@shared/utils/errors';
 
 const doctorService = new DoctorService();
 
@@ -8,6 +9,7 @@ export class DoctorController {
   async getAll(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const institutionId = req.user!.role === 'institution_admin' ? req.user!.institutionId : undefined;
+      if (req.user!.role === 'institution_admin' && !institutionId) throw new ForbiddenError('Institution access is not configured');
       const doctors = await doctorService.getAll(institutionId);
       res.json({ success: true, data: doctors });
     } catch (error) { next(error); }

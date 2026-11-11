@@ -21,9 +21,16 @@ router.get('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, Use
     const { doctorId, patientId, status, startDate, endDate } = req.query;
     const where: Record<string, unknown> = { deletedAt: null };
 
-    // Filter by institution for institution_admin
-    if (req.user!.role === 'institution_admin' && req.user!.institutionId) {
-      where.institutionId = req.user!.institutionId;
+    // Older appointments may not have institutionId populated. Include those
+    // assigned to doctors linked to this institution while keeping scope tight.
+    if (req.user!.role === 'institution_admin') {
+      if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+      where.AND = [{
+        OR: [
+          { institutionId: req.user!.institutionId },
+          { doctor: { institutions: { some: { institutionId: req.user!.institutionId } } } },
+        ],
+      }];
     }
 
     if (doctorId) where.doctorId = String(doctorId);

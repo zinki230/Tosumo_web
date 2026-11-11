@@ -8,6 +8,7 @@ import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInpu
 import { OtpProvider, createOtpProvider, generateOtp } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
 import prisma from '@shared/database/prisma';
+import { Prisma } from '@prisma/client';
 
 function placeholderEmailForPhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
@@ -22,6 +23,78 @@ function phoneConflict(): ConflictError {
 
 export class AuthService {
   private otpProvider: OtpProvider = createOtpProvider();
+
+  async bootstrapSystemAdmin(data: {
+    phone: string;
+    email: string;
+    password: string;
+    currentPassword: string;
+    createdByUserId: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    const actor = await prisma.user.findUnique({
+      where: { id: data.createdByUserId },
+      include: { createdInstitutions: { select: { id: true }, take: 1 } },
+    });
+    if (!actor || actor.role !== 'institution_admin' || !actor.isActive || !actor.createdInstitutions[0]) {
+      throw new UnauthorizedError('Un compte administrateur d’établissement actif est nécessaire');
+    }
+    if (!(await verifyPassword(data.currentPassword, actor.passwordHash))) {
+      throw new UnauthorizedError('Le mot de passe actuel est incorrect');
+    }
+
+    const phone = normalizeCameroonPhone(data.phone);
+    if (!phone) throw new ConflictError('Numéro de téléphone invalide');
+    const email = data.email.trim().toLowerCase();
+    const passwordHash = await hashPassword(data.password);
+    const institutionId = actor.createdInstitutions[0].id;
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // Serialize bootstrap requests so two establishment accounts cannot
+        // both claim the first system-admin slot at the same time.
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(6202611, 1)`;
+        const systemAdminCount = await tx.user.count({ where: { role: { in: ['admin', 'superadmin'] } } });
+        if (systemAdminCount > 0) {
+          throw new ConflictError('Le compte administrateur système est déjà initialisé');
+        }
+
+        const user = await tx.user.create({
+          data: {
+            phone,
+            email,
+            passwordHash,
+            role: 'superadmin',
+            isActive: true,
+            isEmailVerified: true,
+          },
+          select: { id: true, phone: true, email: true, role: true },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: actor.id,
+            institutionId,
+            action: 'create_system_admin',
+            entity: 'user',
+            entityId: user.id,
+            description: `Création du compte administrateur système ${user.email}`,
+            metadata: { role: user.role },
+            ipAddress: data.ipAddress,
+            userAgent: data.userAgent,
+          },
+        });
+
+        return user;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictError('Ce numéro ou cette adresse email est déjà utilisé');
+      }
+      throw error;
+    }
+  }
 
   private repository = new AuthRepository();
 

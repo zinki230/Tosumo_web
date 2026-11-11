@@ -14,6 +14,7 @@ import AdminUsers from './pages/AdminUsers'
 import AdminAppointments from './pages/AdminAppointments'
 import AuditLogs from './pages/AuditLogs'
 import DoctorApprovals from './pages/DoctorApprovals'
+import CreateSystemAdmin from './pages/CreateSystemAdmin'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('tosumo_token')
@@ -50,6 +51,12 @@ function RequireAuditAccess({ children }: { children: React.ReactNode }) {
   return ['admin', 'superadmin', 'institution_admin'].includes(role) ? <>{children}</> : <Navigate to="/" replace />
 }
 
+function RequireInstitutionAdmin({ children }: { children: React.ReactNode }) {
+  let role = ''
+  try { role = JSON.parse(localStorage.getItem('tosumo_user') ?? '{}')?.role ?? '' } catch { role = '' }
+  return role === 'institution_admin' ? <>{children}</> : <Navigate to="/" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -75,6 +82,7 @@ export default function App() {
           <Route path="comptes" element={<RequireSystemAdmin><AdminUsers /></RequireSystemAdmin>} />
           <Route path="rendez-vous" element={<RequireSystemAdmin><AdminAppointments /></RequireSystemAdmin>} />
           <Route path="journal" element={<RequireAuditAccess><AuditLogs /></RequireAuditAccess>} />
+          <Route path="creer-admin" element={<RequireInstitutionAdmin><CreateSystemAdmin /></RequireInstitutionAdmin>} />
           <Route path="verifications" element={<RequireSystemAdmin><DoctorApprovals /></RequireSystemAdmin>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

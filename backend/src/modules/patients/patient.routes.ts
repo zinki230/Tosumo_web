@@ -17,13 +17,16 @@ router.get('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, Use
       where.isVerified = req.query.verified === 'true';
     }
 
-    // Filter by institution for institution_admin
-    if (req.user!.role === 'institution_admin' && req.user!.institutionId) {
-      // Only show patients who have appointments at this institution
+    // Restrict institution admins to patients seen by this institution or its doctors.
+    if (req.user!.role === 'institution_admin') {
+      if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
       where.appointments = {
         some: {
-          institutionId: req.user!.institutionId,
-          deletedAt: null
+          deletedAt: null,
+          OR: [
+            { institutionId: req.user!.institutionId },
+            { doctor: { institutions: { some: { institutionId: req.user!.institutionId } } } },
+          ],
         }
       };
     }

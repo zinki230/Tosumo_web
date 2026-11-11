@@ -231,6 +231,10 @@ export const adminApi = {
     (unwrapAdminData(await client.get('/admin/appointments', { params })) as AdminAppointment[]) ?? [],
   auditLogs: async (params?: { action?: string; entity?: string; search?: string; from?: string; to?: string; page?: number; limit?: number }) =>
     (unwrapAdminData(await client.get('/admin/audit-logs', { params })) as AuditLogResult),
+  systemAdminBootstrapStatus: async () =>
+    unwrapAdminData(await client.get('/admin/system-admin-bootstrap')) as { available: boolean },
+  createSystemAdmin: async (data: { phone: string; email: string; password: string; currentPassword: string }) =>
+    client.post('/admin/system-admin-bootstrap', data),
 }
 
 // ── Institutions ─────────────────────────────────────────────────────────────
