@@ -19,7 +19,7 @@ interface PatientRow extends Patient {
   treatingDoctorId?: string
   treatingDoctorSpecialty?: string
   lastAppointmentDate?: string
-  appointmentCount?: number
+  interactionCount?: number
 }
 
 export default function PatientsList() {
@@ -49,7 +49,7 @@ export default function PatientsList() {
           ))
         }
 
-        // For each patient, pick their "main" doctor (most appointments)
+        // For each patient, pick their main doctor by recorded care activity.
         const doctorForPatient = new Map<string, {
           doctorId: string
           doctorName: string
@@ -60,13 +60,13 @@ export default function PatientsList() {
 
         tracking.forEach((e) => {
           const existing = doctorForPatient.get(e.patient.id)
-          if (!existing || e.appointmentCount > existing.count) {
+          if (!existing || e.interactionCount > existing.count) {
             doctorForPatient.set(e.patient.id, {
               doctorId: e.doctor.id,
               doctorName: e.doctor.fullName,
               doctorSpecialty: e.doctor.specialty,
-              lastDate: e.lastAppointmentDate,
-              count: e.appointmentCount,
+              lastDate: e.lastActivityAt,
+              count: e.interactionCount,
             })
           }
         })
@@ -80,7 +80,7 @@ export default function PatientsList() {
               treatingDoctorId: d?.doctorId,
               treatingDoctorSpecialty: d?.doctorSpecialty,
               lastAppointmentDate: d?.lastDate,
-              appointmentCount: d?.count,
+              interactionCount: d?.count,
             }
           }),
         )
@@ -179,8 +179,8 @@ export default function PatientsList() {
                   <th className="px-5 py-3 font-medium">Statut</th>
                   <th className="px-5 py-3 font-medium">Médecin traitant</th>
                   <th className="px-5 py-3 font-medium">Spécialité</th>
-                  <th className="px-5 py-3 font-medium">Dernier RDV</th>
-                  <th className="px-5 py-3 font-medium text-center">RDV</th>
+                  <th className="px-5 py-3 font-medium">Dernière activité</th>
+                  <th className="px-5 py-3 font-medium text-center">Visites / consultations</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -223,9 +223,9 @@ export default function PatientsList() {
                     </td>
                     <td className="px-5 py-3.5 text-slate-500">{formatDate(p.lastAppointmentDate)}</td>
                     <td className="px-5 py-3.5 text-center">
-                      {p.appointmentCount != null ? (
-                        <Badge variant={p.appointmentCount >= 3 ? 'green' : 'gray'}>
-                          {p.appointmentCount}
+                      {p.interactionCount != null ? (
+                        <Badge variant={p.interactionCount >= 3 ? 'green' : 'gray'}>
+                          {p.interactionCount}
                         </Badge>
                       ) : '—'}
                     </td>

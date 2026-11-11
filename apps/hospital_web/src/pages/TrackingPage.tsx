@@ -1,6 +1,6 @@
 /**
  * Suivi Patient — la page principale.
- * Affiche une table de toutes les paires médecin/patient déduites des RDV,
+ * Affiche les relations médecin/patient établies par visites, consultations et rendez-vous,
  * avec filtres par médecin, par statut, et recherche textuelle.
  */
 import { useEffect, useMemo, useState } from 'react'
@@ -68,10 +68,10 @@ export default function TrackingPage() {
 
     list = [...list].sort((a, b) => {
       if (sortBy === 'date') {
-        return (new Date(b.lastAppointmentDate ?? 0).getTime()) -
-               (new Date(a.lastAppointmentDate ?? 0).getTime())
+        return (new Date(b.lastActivityAt ?? 0).getTime()) -
+               (new Date(a.lastActivityAt ?? 0).getTime())
       }
-      if (sortBy === 'count') return b.appointmentCount - a.appointmentCount
+      if (sortBy === 'count') return b.interactionCount - a.interactionCount
       return a.patient.fullName.localeCompare(b.patient.fullName)
     })
     return list
@@ -126,6 +126,8 @@ export default function TrackingPage() {
             <option value="approved">Approuvé</option>
             <option value="pending">En attente</option>
             <option value="cancelled">Annulé</option>
+            <option value="consultation">Consultation</option>
+            <option value="verified">Patient vérifié</option>
           </select>
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
@@ -136,8 +138,8 @@ export default function TrackingPage() {
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="input pr-8 appearance-none cursor-pointer"
           >
-            <option value="date">Trier : dernier RDV</option>
-            <option value="count">Trier : nb de RDV</option>
+            <option value="date">Trier : dernière activité</option>
+            <option value="count">Trier : nb d’interactions</option>
             <option value="name">Trier : nom patient</option>
           </select>
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -159,10 +161,10 @@ export default function TrackingPage() {
                   <th className="px-5 py-3 font-medium">Statut patient</th>
                   <th className="px-5 py-3 font-medium">Médecin traitant</th>
                   <th className="px-5 py-3 font-medium">Spécialité</th>
-                  <th className="px-5 py-3 font-medium">Dernier RDV</th>
+                  <th className="px-5 py-3 font-medium">Dernière activité</th>
                   <th className="px-5 py-3 font-medium">Prochain RDV</th>
-                  <th className="px-5 py-3 font-medium">Statut RDV</th>
-                  <th className="px-5 py-3 font-medium text-center">Nb RDV</th>
+                  <th className="px-5 py-3 font-medium">Événement récent</th>
+                  <th className="px-5 py-3 font-medium text-center">Interactions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -215,7 +217,7 @@ export default function TrackingPage() {
                     <td className="px-5 py-3.5">
                       <span className="flex items-center gap-1.5 text-slate-500">
                         <Calendar size={13} className="shrink-0 text-slate-400" />
-                        {formatDate(entry.lastAppointmentDate)}
+                        {formatDate(entry.lastActivityAt)}
                       </span>
                     </td>
 
@@ -238,8 +240,8 @@ export default function TrackingPage() {
 
                     {/* Count */}
                     <td className="px-5 py-3.5 text-center">
-                      <Badge variant={entry.appointmentCount >= 5 ? 'green' : 'gray'}>
-                        {entry.appointmentCount}
+                      <Badge variant={entry.interactionCount >= 5 ? 'green' : 'gray'}>
+                        {entry.interactionCount}
                       </Badge>
                     </td>
                   </tr>

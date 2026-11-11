@@ -244,6 +244,7 @@ model Doctor {
   workingHours        WorkingHours[]
   appointments        Appointment[]
   consultations       Consultation[]
+  visits              Visit[]
   labResults          LabResult[]
   imagingResults      ImagingResult[]
   prescriptions       Prescription[]
@@ -336,6 +337,7 @@ model Institution {
   doctors         DoctorInstitution[]
   appointments    Appointment[]
   visits          Visit[]
+  consultations   Consultation[]
 }
 
 // ============================================================
@@ -377,6 +379,7 @@ model Appointment {
 model Visit {
   id             String   @id @default(cuid())
   medicalCardId  String
+  doctorId       String?
   appointmentId  String?
   institutionId  String?
   visitDate      DateTime @default(now())
@@ -387,6 +390,7 @@ model Visit {
   updatedAt      DateTime @updatedAt
 
   medicalCard    MedicalCard @relation(fields: [medicalCardId], references: [id])
+  doctor         Doctor? @relation(fields: [doctorId], references: [id])
   appointment    Appointment? @relation(fields: [appointmentId], references: [id])
   institution    Institution? @relation(fields: [institutionId], references: [id])
 }
@@ -399,6 +403,7 @@ model Consultation {
   id              String   @id @default(cuid())
   patientId       String
   doctorId        String
+  institutionId   String?
   appointmentId   String?
   chiefComplaint  String
   historyOfPresentIllness String?
@@ -418,7 +423,10 @@ model Consultation {
 
   patient         Patient  @relation(fields: [patientId], references: [id])
   doctor          Doctor   @relation(fields: [doctorId], references: [id])
+  institution     Institution? @relation(fields: [institutionId], references: [id])
   prescriptions   Prescription[]
+
+  @@index([institutionId, consultationDate])
 }
 
 model LabResult {

@@ -1,12 +1,22 @@
 import { Response, NextFunction } from 'express';
 import { PatientService } from './patient.service';
 import { AuthenticatedRequest } from '@shared/types';
-import { ForbiddenError, NotFoundError } from '@shared/utils/errors';
+import { BadRequestError, ForbiddenError, NotFoundError } from '@shared/utils/errors';
 import prisma from '@shared/database/prisma';
 
 const patientService = new PatientService();
 
 export class PatientController {
+  async recordVisit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      if (req.user!.role !== 'doctor') throw new ForbiddenError('Seul un médecin peut enregistrer une visite');
+      const institutionId = typeof req.body?.institutionId === 'string' ? req.body.institutionId : '';
+      if (!institutionId) throw new BadRequestError('institutionId est obligatoire');
+      const visit = await patientService.recordVisit(String(req.params.id), req.user!.userId, institutionId);
+      res.status(201).json({ success: true, data: visit });
+    } catch (error) { next(error); }
+  }
+
   async getProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const profile = await patientService.getProfile(req.user!.userId);

@@ -7,6 +7,50 @@ import prisma from '@shared/database/prisma';
 export class PatientService {
   private repository = new PatientRepository();
 
+  async recordVisit(patientId: string, doctorUserId: string, institutionId: string) {
+    const [doctor, patient, institution, access] = await Promise.all([
+      prisma.doctor.findUnique({ where: { userId: doctorUserId } }),
+      prisma.patient.findUnique({ where: { id: patientId }, include: { medicalCard: true } }),
+      prisma.institution.findFirst({ where: { id: institutionId, isVerified: true, deletedAt: null } }),
+      prisma.accessManagement.findFirst({
+        where: {
+          grantedToId: doctorUserId,
+          patientId,
+          isActive: true,
+          deletedAt: null,
+          OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+        },
+      }),
+    ]);
+    if (!doctor) throw new ForbiddenError('Profil médecin introuvable');
+    if (!patient) throw new NotFoundError('Patient introuvable');
+    if (!institution) throw new BadRequestError('Sélectionnez un centre de santé vérifié dans la liste');
+    if (!access) throw new ForbiddenError('Le patient doit autoriser l’accès avant d’enregistrer la visite');
+
+    const medicalCard = patient.medicalCard ?? await prisma.medicalCard.create({
+      data: { patientId, cardNumber: generateCardNumber(), deletedAt: null },
+    });
+    const recentVisit = await prisma.visit.findFirst({
+      where: {
+        medicalCardId: medicalCard.id,
+        doctorId: doctor.id,
+        institutionId,
+        visitDate: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+      },
+      orderBy: { visitDate: 'desc' },
+    });
+    if (recentVisit) return recentVisit;
+    return prisma.visit.create({
+      data: {
+        medicalCardId: medicalCard.id,
+        doctorId: doctor.id,
+        institutionId,
+        visitDate: new Date(),
+        notes: 'Visite enregistrée depuis l’application médecin',
+      },
+    });
+  }
+
   async getProfile(userId: string) {
     let patient = await this.repository.findByUserId(userId);
     if (!patient) {
@@ -33,6 +77,8 @@ export class PatientService {
     // Do not persist a verified status until the doctor has recorded at least
     // one clinical detail (or a complete emergency contact).
     if (data['isVerified'] === true) {
+      const institutionId = typeof data['institutionId'] === 'string' ? data['institutionId'] : '';
+      if (!institutionId) throw new BadRequestError('Sélectionnez le centre de santé où la vérification est effectuée');
       const hasValue = (value: unknown) => typeof value === 'string' && value.trim().length > 0;
       const hasEntries = (incoming: unknown, existing: unknown) => {
         const values = Array.isArray(incoming) ? incoming : Array.isArray(existing) ? existing : [];
@@ -84,7 +130,11 @@ export class PatientService {
       payload['chronicConditions'] = payload['chronicDiseases'];
     }
     
-    return this.repository.update(patient.id, payload);
+    const updated = await this.repository.update(patient.id, payload);
+    if (data['isVerified'] === true) {
+      await this.recordVisit(patient.id, doctorUserId, String(data['institutionId']));
+    }
+    return updated;
   }
 
   async onboardPatient(userId: string, data: {

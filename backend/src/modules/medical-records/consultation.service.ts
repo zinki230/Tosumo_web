@@ -1,5 +1,5 @@
 import { ConsultationRepository } from './consultation.repository';
-import { NotFoundError, ForbiddenError } from '@shared/utils/errors';
+import { NotFoundError, ForbiddenError, BadRequestError } from '@shared/utils/errors';
 import prisma from '@shared/database/prisma';
 
 export class ConsultationService {
@@ -7,6 +7,7 @@ export class ConsultationService {
 
   async create(userId: string, role: string, data: {
     patientId: string;
+    institutionId: string;
     appointmentId?: string;
     chiefComplaint: string;
     historyOfPresentIllness?: string;
@@ -21,6 +22,8 @@ export class ConsultationService {
     if (role !== 'doctor') throw new ForbiddenError('Only doctors can create consultations');
     const doctor = await prisma.doctor.findUnique({ where: { userId } });
     if (!doctor) throw new NotFoundError('Doctor profile not found');
+    const institution = await prisma.institution.findFirst({ where: { id: data.institutionId, isVerified: true, deletedAt: null } });
+    if (!institution) throw new BadRequestError('Sélectionnez un centre de santé vérifié dans la liste');
     return this.repository.create({ ...data, doctorId: doctor.id });
   }
 

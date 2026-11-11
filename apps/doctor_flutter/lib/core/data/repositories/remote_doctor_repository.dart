@@ -240,6 +240,7 @@ class RemoteDoctorRepository
       'verifiedBy': update.signedByDoctorId,
       'verifiedByName': update.signedByDoctorName,
       'signed': update.signed,
+      if (update.institutionId != null) 'institutionId': update.institutionId,
     };
     try {
       final response = await _client.dio.put(
@@ -489,7 +490,7 @@ class RemoteDoctorRepository
       'patientId': c.patientId,
       'appointmentId': c.appointmentId.isEmpty ? null : c.appointmentId,
       'consultationType': c.consultationType,
-      'facility': c.facility.isEmpty ? null : c.facility,
+      'institutionId': c.institutionId,
       'chiefComplaint': c.chiefComplaint.isEmpty
           ? c.diagnosis
           : c.chiefComplaint,

@@ -2,13 +2,13 @@ import prisma from '@shared/database/prisma';
 
 export class ConsultationRepository {
   async findById(id: string) {
-    return prisma.consultation.findUnique({ where: { id }, include: { doctor: true, patient: true, prescriptions: true } });
+    return prisma.consultation.findUnique({ where: { id }, include: { doctor: true, patient: true, prescriptions: true, institution: true } });
   }
 
   async findByPatientId(patientId: string) {
     return prisma.consultation.findMany({
       where: { patientId, deletedAt: null },
-      include: { doctor: true, prescriptions: true },
+      include: { doctor: true, prescriptions: true, institution: true },
       orderBy: { consultationDate: 'desc' },
     });
   }
@@ -16,7 +16,7 @@ export class ConsultationRepository {
   async findByDoctorId(doctorId: string) {
     return prisma.consultation.findMany({
       where: { doctorId, deletedAt: null },
-      include: { patient: { include: { user: true } }, prescriptions: true },
+      include: { patient: { include: { user: true } }, prescriptions: true, institution: true },
       orderBy: { consultationDate: 'desc' },
     });
   }
@@ -24,6 +24,7 @@ export class ConsultationRepository {
   async create(data: {
     patientId: string;
     doctorId: string;
+    institutionId: string;
     appointmentId?: string;
     chiefComplaint: string;
     historyOfPresentIllness?: string;
@@ -35,7 +36,7 @@ export class ConsultationRepository {
     notes?: string;
     orderedExams?: unknown;
   }) {
-    return prisma.consultation.create({ data: { ...data, vitalSigns: data.vitalSigns as any, orderedExams: data.orderedExams as any } });
+    return prisma.consultation.create({ data: { ...data, vitalSigns: data.vitalSigns as any, orderedExams: data.orderedExams as any }, include: { institution: true } });
   }
 
   private readonly allowedUpdateFields = [

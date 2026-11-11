@@ -11,6 +11,7 @@ import '../../../domain/models/emergency_contact_info.dart';
 import '../../../domain/models/patient_detail.dart';
 import '../../../domain/models/patient_vitals_update.dart';
 import '../../../core/data/repositories/repository_providers.dart';
+import '../../../core/network/doctor_api_endpoints.dart';
 import '../../../core/services/error_mapper.dart';
 
 class PatientVitalsEditScreen extends ConsumerStatefulWidget {
@@ -39,6 +40,9 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
   final _medsController = TextEditingController();
   bool _signed = false;
   bool _saving = false;
+  bool _loadingInstitutions = true;
+  List<Map<String, dynamic>> _institutions = [];
+  String? _selectedInstitutionId;
 
   @override
   void initState() {
@@ -52,6 +56,21 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
     _ecName.text = p.emergencyContact?.name ?? '';
     _ecRelationship.text = p.emergencyContact?.relationship ?? '';
     _ecPhone.text = p.emergencyContact?.phone ?? '';
+    _loadInstitutions();
+  }
+
+  Future<void> _loadInstitutions() async {
+    try {
+      final response = await ref.read(apiClientProvider).dio.get(DoctorApiEndpoints.institutions);
+      final raw = response.data is List ? response.data as List : (response.data is Map ? (response.data['data'] as List? ?? const []) : const []);
+      if (!mounted) return;
+      setState(() {
+        _institutions = raw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+        _loadingInstitutions = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingInstitutions = false);
+    }
   }
 
   @override
@@ -74,6 +93,10 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
   }
 
   Future<void> _save() async {
+    if (_signed && (_selectedInstitutionId == null || _selectedInstitutionId!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sélectionnez le centre de santé où la vérification est effectuée.')));
+      return;
+    }
     final hasClinicalDetails =
         (_bloodType?.isNotEmpty ?? false) ||
         _allergies.isNotEmpty ||
@@ -104,6 +127,7 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
       signedByDoctorId: doctor?.id ?? ref.read(currentDoctorIdProvider),
       signedByDoctorName: doctor?.name ?? '',
       signed: _signed,
+      institutionId: _selectedInstitutionId,
     );
     setState(() => _saving = true);
     try {
@@ -156,6 +180,16 @@ class _PatientVitalsEditScreenState extends ConsumerState<PatientVitalsEditScree
               style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.4),
             ),
             const SizedBox(height: 24),
+            _SectionTitle(label: 'Centre de santé'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedInstitutionId,
+              hint: Text(_loadingInstitutions ? 'Chargement des centres…' : 'Sélectionner un centre'),
+              items: _institutions.map((i) => DropdownMenuItem<String>(value: i['id'] as String?, child: Text(i['name'] as String? ?? 'Centre'))).where((i) => i.value != null).toList(),
+              onChanged: _saving ? null : (value) => setState(() => _selectedInstitutionId = value),
+              decoration: _inputDecoration(),
+            ),
+            const SizedBox(height: 20),
             _SectionTitle(label: 'Groupe sanguin'),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(

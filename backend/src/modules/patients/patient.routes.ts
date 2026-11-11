@@ -20,15 +20,20 @@ router.get('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, Use
     // Restrict institution admins to patients seen by this institution or its doctors.
     if (req.user!.role === 'institution_admin') {
       if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
-      where.appointments = {
-        some: {
-          deletedAt: null,
-          OR: [
-            { institutionId: req.user!.institutionId },
-            { doctor: { institutions: { some: { institutionId: req.user!.institutionId } } } },
-          ],
-        }
-      };
+      const institutionId = req.user!.institutionId;
+      where.AND = [{
+        OR: [
+          { appointments: { some: {
+            deletedAt: null,
+            OR: [
+              { institutionId },
+              { doctor: { institutions: { some: { institutionId } } } },
+            ],
+          } } },
+          { consultations: { some: { institutionId, deletedAt: null } } },
+          { medicalCard: { is: { visits: { some: { institutionId } } } } },
+        ],
+      }];
     }
 
     if (search) {
@@ -70,6 +75,7 @@ router.delete('/medical-booklets/:bookletId', authenticate, controller.deleteMed
 router.get('/journey', authenticate, controller.getJourney);
 router.get('/appointments', authenticate, controller.getAppointments);
 router.get('/medical-records', authenticate, controller.getMedicalRecords);
+router.post('/:id/visits', authenticate, controller.recordVisit);
 router.get('/:id', authenticate, controller.getPatientByIdOrUserId);
 router.put('/:id', authenticate, controller.updateByDoctor);
 router.post('/', authenticate, controller.createPatient);

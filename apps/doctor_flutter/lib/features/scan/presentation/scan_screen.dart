@@ -14,6 +14,7 @@ import '../../../domain/models/patient_detail.dart';
 import '../../../core/data/repositories/repository_providers.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/error_mapper.dart';
+import '../../../core/network/doctor_api_endpoints.dart';
 import '../../../shared/widgets/app_button.dart';
 
 class ScanScreen extends ConsumerStatefulWidget {
@@ -38,6 +39,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   String? _scanError;
   bool _showManualEntry = false;
   bool _isLoading = false;
+  bool _loadingInstitutions = true;
+  List<Map<String, dynamic>> _institutions = [];
+  String? _selectedInstitutionId;
   
   // Cache des QR codes récemment scannés (évite recherches multiples)
   final Map<String, PatientDetail> _qrCache = {};
@@ -48,12 +52,27 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   void initState() {
     super.initState();
     _initializeScanner();
+    _loadInstitutions();
     
     // Nettoyer le cache toutes les 5 minutes
     _cacheCleanupTimer = Timer.periodic(
       const Duration(minutes: 5),
       (_) => _qrCache.clear(),
     );
+  }
+
+  Future<void> _loadInstitutions() async {
+    try {
+      final response = await ref.read(apiClientProvider).dio.get(DoctorApiEndpoints.institutions);
+      final raw = response.data is List ? response.data as List : (response.data is Map ? (response.data['data'] as List? ?? const []) : const []);
+      if (!mounted) return;
+      setState(() {
+        _institutions = raw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+        _loadingInstitutions = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingInstitutions = false);
+    }
   }
 
   Future<void> _initializeScanner() async {
@@ -233,7 +252,26 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
   Future<void> _openRecord() async {
     if (_patientId == null) return;
-    context.go('/patient/$_patientId');
+    final institutionId = _selectedInstitutionId;
+    if (institutionId == null || institutionId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sélectionnez le centre de santé où vous vérifiez ce patient.')));
+      return;
+    }
+    setState(() => _verifying = true);
+    try {
+      await ref.read(apiClientProvider).dio.post(
+        DoctorApiEndpoints.patientVisits(_patientId!),
+        data: {'institutionId': institutionId},
+      ).timeout(const Duration(seconds: 15));
+      if (mounted) context.go('/patient/$_patientId');
+    } catch (e) {
+      if (mounted) {
+        final failure = ErrorMapper.fromException(e);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
   }
 
   Future<void> _startEmergencyAccess() async {
@@ -832,6 +870,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           ],
           const SizedBox(height: 16),
           if (canAccess) ...[
+            const Text('Centre de santé', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.foreground)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedInstitutionId,
+              hint: Text(_loadingInstitutions ? 'Chargement des centres…' : 'Sélectionner un centre'),
+              items: _institutions.map((i) => DropdownMenuItem<String>(value: i['id'] as String?, child: Text(i['name'] as String? ?? 'Centre'))).where((i) => i.value != null).toList(),
+              onChanged: (value) => setState(() => _selectedInstitutionId = value),
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: AppButton(
@@ -839,7 +887,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     ? 'Ouvrir le dossier patient' 
                     : 'Compléter les informations',
                 loading: _verifying,
-                onPressed: _openRecord,
+                onPressed: _verifying || _selectedInstitutionId == null ? null : _openRecord,
               ),
             ),
           ] else ...[

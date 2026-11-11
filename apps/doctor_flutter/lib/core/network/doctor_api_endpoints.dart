@@ -42,6 +42,7 @@ class DoctorApiEndpoints {
 
   static const String patients = '/api/v1/patients';
   static String patient(String id) => '$patients/$id';
+  static String patientVisits(String id) => '$patients/$id/visits';
   static const String patientProfile = '$patients/profile';
 
   static const String appointments = '/api/v1/appointments';

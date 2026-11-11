@@ -33,8 +33,8 @@ export default function Dashboard() {
       if (trackingResult.status === 'fulfilled') {
         // Show the eight most-recently-seen relationships from a small sample.
         const sorted = [...trackingResult.value].sort((a, b) => {
-          const da = a.lastAppointmentDate ? new Date(a.lastAppointmentDate).getTime() : 0
-          const db = b.lastAppointmentDate ? new Date(b.lastAppointmentDate).getTime() : 0
+          const da = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0
+          const db = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0
           return db - da
         })
         setRecent(sorted.slice(0, 8))
@@ -99,9 +99,9 @@ export default function Dashboard() {
                   <th className="px-5 py-3 font-medium">Patient</th>
                   <th className="px-5 py-3 font-medium">Médecin traitant</th>
                   <th className="px-5 py-3 font-medium">Spécialité</th>
-                  <th className="px-5 py-3 font-medium">Dernier RDV</th>
+                  <th className="px-5 py-3 font-medium">Dernière activité</th>
                   <th className="px-5 py-3 font-medium">Statut</th>
-                  <th className="px-5 py-3 font-medium">Total RDV</th>
+                  <th className="px-5 py-3 font-medium">Interactions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -129,12 +129,12 @@ export default function Dashboard() {
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-slate-500">{entry.doctor.specialty || '—'}</td>
-                    <td className="px-5 py-3 text-slate-500">{formatDate(entry.lastAppointmentDate)}</td>
+                    <td className="px-5 py-3 text-slate-500">{formatDate(entry.lastActivityAt)}</td>
                     <td className="px-5 py-3">
                       <AppointmentStatusBadge status={entry.lastStatus} />
                     </td>
                     <td className="px-5 py-3">
-                      <Badge variant="blue">{entry.appointmentCount}</Badge>
+                      <Badge variant="blue">{entry.interactionCount}</Badge>
                     </td>
                   </tr>
                 ))}

@@ -15,6 +15,7 @@ import '../../../domain/models/prescription.dart';
 import '../../../domain/models/medication_item.dart';
 import '../../../core/services/error_mapper.dart';
 import '../../../core/data/repositories/repository_providers.dart';
+import '../../../core/network/doctor_api_endpoints.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../shared/widgets/page_header.dart';
 import '../../../shared/widgets/empty_state.dart';
@@ -40,7 +41,10 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
   final _clinicalNotesController = TextEditingController();
   final _followUpController = TextEditingController();
 
-  final _facilityController = TextEditingController();
+  List<Map<String, dynamic>> _institutions = [];
+  bool _loadingInstitutions = true;
+  String? _selectedInstitutionId;
+  String? _selectedInstitutionName;
   final _chiefComplaintController = TextEditingController();
   final _recommendationsController = TextEditingController();
 
@@ -73,6 +77,21 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
     } else {
       _loadConsultations();
     }
+    _loadInstitutions();
+  }
+
+  Future<void> _loadInstitutions() async {
+    try {
+      final response = await ref.read(apiClientProvider).dio.get(DoctorApiEndpoints.institutions);
+      final raw = response.data is List ? response.data as List : (response.data is Map ? (response.data['data'] as List? ?? const []) : const []);
+      if (!mounted) return;
+      setState(() {
+        _institutions = raw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+        _loadingInstitutions = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingInstitutions = false);
+    }
   }
 
   @override
@@ -81,7 +100,6 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
     _diagnosisController.dispose();
     _clinicalNotesController.dispose();
     _followUpController.dispose();
-    _facilityController.dispose();
     _chiefComplaintController.dispose();
     _recommendationsController.dispose();
     _bpSystolicController.dispose();
@@ -115,7 +133,8 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
       _diagnosisController.clear();
       _clinicalNotesController.clear();
       _followUpController.clear();
-      _facilityController.clear();
+      _selectedInstitutionId = null;
+      _selectedInstitutionName = null;
       _chiefComplaintController.clear();
       _recommendationsController.clear();
       _bpSystolicController.clear();
@@ -145,6 +164,10 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
 
   Future<void> _saveConsultation() async {
     if (_selectedPatient == null) return;
+    if (_selectedInstitutionId == null || _selectedInstitutionId!.isEmpty) {
+      _toast('Sélectionnez le centre de santé de cette consultation');
+      return;
+    }
     setState(() => _isSaving = true);
     try {
       final vitals = VitalSigns(
@@ -164,6 +187,7 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         patientId: _selectedPatient!.id,
         doctorId: ref.read(currentDoctorIdProvider) ?? '',
+        institutionId: _selectedInstitutionId,
         appointmentId: '',
         date: DateTime.now(),
         symptoms: _symptomsController.text.isNotEmpty
@@ -176,7 +200,7 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
         orderedExams: _orderedExams,
         severity: _severity,
         consultationType: _consultationType,
-        facility: _facilityController.text,
+        facility: _selectedInstitutionName ?? '',
         chiefComplaint: _chiefComplaintController.text,
         recommendations: _recommendationsController.text,
         signature: signature,
@@ -405,11 +429,17 @@ class _ConsultationsScreenState extends ConsumerState<ConsultationsScreen> {
             ),
             const SizedBox(height: 20),
             const SectionHeader(title: 'Établissement'),
-            TextField(
-              controller: _facilityController,
-              decoration: const InputDecoration(
-                hintText: 'Hôpital / clinique',
-              ),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedInstitutionId,
+              hint: Text(_loadingInstitutions ? 'Chargement des centres…' : 'Sélectionner un centre'),
+              items: _institutions.map((i) => DropdownMenuItem<String>(value: i['id'] as String?, child: Text(i['name'] as String? ?? 'Centre'))).where((i) => i.value != null).toList(),
+              onChanged: (value) {
+                final institution = _institutions.where((i) => i['id'] == value).firstOrNull;
+                setState(() {
+                  _selectedInstitutionId = value;
+                  _selectedInstitutionName = institution?['name'] as String?;
+                });
+              },
             ),
             const SizedBox(height: 20),
             const SectionHeader(title: 'Motif / Plainte principale'),

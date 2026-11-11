@@ -10,6 +10,7 @@ sealed class Consultation with _$Consultation {
     required String id,
     required String patientId,
     required String doctorId,
+    String? institutionId,
     required String appointmentId,
     required DateTime date,
     @Default(<String>[]) List<String> symptoms,

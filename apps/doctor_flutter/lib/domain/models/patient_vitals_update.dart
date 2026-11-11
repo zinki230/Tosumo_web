@@ -15,6 +15,7 @@ sealed class PatientVitalsUpdate with _$PatientVitalsUpdate {
     EmergencyContactInfo? emergencyContact,
     String? signedByDoctorId,
     String? signedByDoctorName,
+    String? institutionId,
     @Default(false) bool signed,
   }) = _PatientVitalsUpdate;
 

@@ -191,15 +191,17 @@ export class DoctorRepository {
   }
 
   async getPatients(doctorId: string) {
-    const appointments = await prisma.appointment.findMany({
-      where: { doctorId, deletedAt: null },
-      select: { patientId: true },
-      distinct: ['patientId'],
-    });
-    const patientIds = appointments.map(a => a.patientId);
     return prisma.patient.findMany({
-      where: { id: { in: patientIds } },
+      where: {
+        deletedAt: null,
+        OR: [
+          { appointments: { some: { doctorId, deletedAt: null } } },
+          { consultations: { some: { doctorId, deletedAt: null } } },
+          { medicalCard: { is: { visits: { some: { doctorId } } } } },
+        ],
+      },
       include: { user: { select: { email: true, phone: true } }, medicalCard: true },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

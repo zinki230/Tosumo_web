@@ -7,36 +7,11 @@ import { AuditService } from '../audit/audit.service';
 import { DoctorService } from '../doctors/doctor.service';
 import { authorize } from '@shared/middleware/auth';
 import { UserRole } from '@shared/types';
-import { AuthService } from '../auth/auth.service';
-import { createSystemAdminSchema } from './admin.validation';
 
 const router = Router();
 const auditService = new AuditService();
-const authService = new AuthService();
 const doctorService = new DoctorService();
 const dashboardRoles = [UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.INSTITUTION_ADMIN];
-
-router.get('/system-admin-bootstrap', authenticate, authorize(UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
-    const count = await prisma.user.count({ where: { role: { in: [UserRole.ADMIN, UserRole.SUPERADMIN] } } });
-    res.json({ success: true, data: { available: count === 0 } });
-  } catch (error) { next(error); }
-});
-
-router.post('/system-admin-bootstrap', authenticate, authorize(UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.user!.institutionId) return res.status(403).json({ success: false, message: 'Institution access is not configured' });
-    const input = createSystemAdminSchema.parse(req.body);
-    const user = await authService.bootstrapSystemAdmin({
-      ...input,
-      createdByUserId: req.user!.userId,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')?.slice(0, 512),
-    });
-    res.status(201).json({ success: true, data: user, message: 'System administrator account created' });
-  } catch (error) { next(error); }
-});
 
 // Get all users
 router.get('/users', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -176,6 +151,107 @@ router.get('/audit-logs', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER
   } catch (error) { next(error); }
 });
 
+router.get('/tracking', authenticate, authorize(...dashboardRoles), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const isInstitutionAdmin = req.user!.role === UserRole.INSTITUTION_ADMIN;
+    const institutionId = isInstitutionAdmin ? req.user!.institutionId : undefined;
+    if (isInstitutionAdmin && !institutionId) {
+      return res.status(403).json({ success: false, message: 'Institution access is not configured' });
+    }
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+    const appointmentWhere = institutionId ? {
+      deletedAt: null,
+      OR: [
+        { institutionId },
+        { doctor: { institutions: { some: { institutionId } } } },
+      ],
+    } : { deletedAt: null };
+    const [appointments, consultations, visits] = await Promise.all([
+      prisma.appointment.findMany({
+        where: appointmentWhere,
+        include: { patient: { include: { user: { select: { email: true, phone: true } } } }, doctor: { include: { user: { select: { email: true, phone: true } } } } },
+        orderBy: { appointmentDate: 'desc' },
+        take: limit,
+      }),
+      prisma.consultation.findMany({
+        where: { deletedAt: null, ...(institutionId ? { institutionId } : {}) },
+        include: { patient: { include: { user: { select: { email: true, phone: true } } } }, doctor: { include: { user: { select: { email: true, phone: true } } } } },
+        orderBy: { consultationDate: 'desc' },
+        take: limit,
+      }),
+      prisma.visit.findMany({
+        where: { doctorId: { not: null }, ...(institutionId ? { institutionId } : {}) },
+        include: {
+          medicalCard: { include: { patient: { include: { user: { select: { email: true, phone: true } } } } } },
+          doctor: { include: { user: { select: { email: true, phone: true } } } },
+        },
+        orderBy: { visitDate: 'desc' },
+        take: limit,
+      }),
+    ]);
+
+    type ActivityEntry = {
+      patient: unknown;
+      doctor: unknown;
+      lastAppointmentDate?: string;
+      nextAppointmentDate?: string;
+      appointmentCount: number;
+      consultationCount: number;
+      visitCount: number;
+      interactionCount: number;
+      lastStatus: string;
+      lastActivityAt: string;
+    };
+    const entries = new Map<string, ActivityEntry>();
+    const addActivity = (data: {
+      patientId: string;
+      doctorId: string;
+      patient: unknown;
+      doctor: unknown;
+      date: Date;
+      kind: 'appointment' | 'consultation' | 'visit';
+      status: string;
+      appointmentDate?: Date;
+    }) => {
+      const key = `${data.doctorId}::${data.patientId}`;
+      const current = entries.get(key) ?? {
+        patient: data.patient,
+        doctor: data.doctor,
+        appointmentCount: 0,
+        consultationCount: 0,
+        visitCount: 0,
+        interactionCount: 0,
+        lastStatus: data.status,
+        lastActivityAt: data.date.toISOString(),
+      };
+      if (data.kind === 'appointment') current.appointmentCount += 1;
+      if (data.kind === 'consultation') current.consultationCount += 1;
+      if (data.kind === 'visit') current.visitCount += 1;
+      current.interactionCount += 1;
+      if (data.kind === 'appointment' && data.appointmentDate) {
+        const dateString = data.appointmentDate.toISOString();
+        const isUpcoming = data.appointmentDate > new Date() && data.status !== 'cancelled';
+        if (isUpcoming && (!current.nextAppointmentDate || dateString < current.nextAppointmentDate)) current.nextAppointmentDate = dateString;
+        if (!current.lastAppointmentDate || dateString > current.lastAppointmentDate) current.lastAppointmentDate = dateString;
+      }
+      if (data.date.toISOString() >= current.lastActivityAt) {
+        current.lastActivityAt = data.date.toISOString();
+        current.lastStatus = data.status;
+      }
+      entries.set(key, current);
+    };
+
+    for (const row of appointments) addActivity({ patientId: row.patientId, doctorId: row.doctorId, patient: row.patient, doctor: row.doctor, date: row.appointmentDate, appointmentDate: row.appointmentDate, kind: 'appointment', status: row.status });
+    for (const row of consultations) addActivity({ patientId: row.patientId, doctorId: row.doctorId, patient: row.patient, doctor: row.doctor, date: row.consultationDate, kind: 'consultation', status: 'consultation' });
+    for (const row of visits) {
+      if (row.doctor) addActivity({ patientId: row.medicalCard.patientId, doctorId: row.doctorId!, patient: row.medicalCard.patient, doctor: row.doctor, date: row.visitDate, kind: 'visit', status: 'verified' });
+    }
+
+    const data = [...entries.values()].sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt)).slice(0, limit);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+});
+
 // Dashboard stats (admin)
 router.get('/dashboard', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -226,13 +302,17 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
 
     const patientWhere = institutionId ? {
       deletedAt: null,
-      appointments: { some: {
-        deletedAt: null,
-        OR: [
-          { institutionId },
-          { doctor: { institutions: { some: { institutionId } } } },
-        ],
-      } }
+      OR: [
+        { appointments: { some: {
+          deletedAt: null,
+          OR: [
+            { institutionId },
+            { doctor: { institutions: { some: { institutionId } } } },
+          ],
+        } } },
+        { consultations: { some: { institutionId, deletedAt: null } } },
+        { medicalCard: { is: { visits: { some: { institutionId } } } } },
+      ]
     } : { deletedAt: null };
 
     const appointmentWhere = institutionId ? {
@@ -258,13 +338,17 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
     const verifiedPatientWhere = institutionId ? {
       deletedAt: null,
       isVerified: true,
-      appointments: { some: {
-        deletedAt: null,
-        OR: [
-          { institutionId },
-          { doctor: { institutions: { some: { institutionId } } } },
-        ],
-      } }
+      OR: [
+        { appointments: { some: {
+          deletedAt: null,
+          OR: [
+            { institutionId },
+            { doctor: { institutions: { some: { institutionId } } } },
+          ],
+        } } },
+        { consultations: { some: { institutionId, deletedAt: null } } },
+        { medicalCard: { is: { visits: { some: { institutionId } } } } },
+      ]
     } : {
       deletedAt: null,
       isVerified: true
@@ -274,6 +358,14 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
       where: appointmentWhere,
       select: { doctorId: true, patientId: true },
     });
+    const consultationsForRelationships = prisma.consultation.findMany({
+      where: { deletedAt: null, ...(institutionId ? { institutionId } : {}) },
+      select: { doctorId: true, patientId: true },
+    });
+    const visitsForRelationships = prisma.visit.findMany({
+      where: { ...(institutionId ? { institutionId } : {}), doctorId: { not: null } },
+      select: { doctorId: true, medicalCard: { select: { patientId: true } } },
+    });
 
     const [
       totalDoctors,
@@ -281,7 +373,9 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
       totalAppointments,
       todayAppointments,
       verifiedPatients,
-      relationships,
+      appointmentRelationships,
+      consultationRelationships,
+      visitRelationships,
     ] = await Promise.all([
       prisma.doctor.count({ where: doctorWhere }),
       prisma.patient.count({ where: patientWhere }),
@@ -289,6 +383,15 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
       prisma.appointment.count({ where: todayAppointmentWhere }),
       prisma.patient.count({ where: verifiedPatientWhere }),
       appointmentsForRelationships,
+      consultationsForRelationships,
+      visitsForRelationships,
+    ]);
+    const relationships = new Set([
+      ...appointmentRelationships.map((row) => `${row.doctorId}::${row.patientId}`),
+      ...consultationRelationships.map((row) => `${row.doctorId}::${row.patientId}`),
+      ...visitRelationships
+        .filter((row) => row.doctorId)
+        .map((row) => `${row.doctorId}::${row.medicalCard.patientId}`),
     ]);
 
     res.json({
@@ -299,7 +402,7 @@ router.get('/stats', authenticate, authorize(...dashboardRoles), async (req: Aut
         totalAppointments,
         todayAppointments,
         verifiedPatients,
-        activeRelationships: new Set(relationships.map((a) => `${a.doctorId}::${a.patientId}`)).size,
+        activeRelationships: relationships.size,
       },
     });
   } catch (error) {

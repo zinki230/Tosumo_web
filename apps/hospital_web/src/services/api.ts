@@ -126,6 +126,10 @@ export interface TrackingEntry {
   lastAppointmentDate?: string
   nextAppointmentDate?: string
   appointmentCount: number
+  consultationCount: number
+  visitCount: number
+  interactionCount: number
+  lastActivityAt: string
   lastStatus: string
 }
 
@@ -231,10 +235,6 @@ export const adminApi = {
     (unwrapAdminData(await client.get('/admin/appointments', { params })) as AdminAppointment[]) ?? [],
   auditLogs: async (params?: { action?: string; entity?: string; search?: string; from?: string; to?: string; page?: number; limit?: number }) =>
     (unwrapAdminData(await client.get('/admin/audit-logs', { params })) as AuditLogResult),
-  systemAdminBootstrapStatus: async () =>
-    unwrapAdminData(await client.get('/admin/system-admin-bootstrap')) as { available: boolean },
-  createSystemAdmin: async (data: { phone: string; email: string; password: string; currentPassword: string }) =>
-    client.post('/admin/system-admin-bootstrap', data),
 }
 
 // ── Institutions ─────────────────────────────────────────────────────────────
@@ -390,57 +390,25 @@ export const appointmentsApi = {
 }
 
 // ── Tracking ──────────────────────────────────────────────────────────────────
-/**
- * Build the doctor→patient tracking table by joining appointments.
- * The "treating doctor" for a patient is the one with the most appointments.
- */
 export const trackingApi = {
   getAll: async (limit = 500): Promise<TrackingEntry[]> => {
-    const [appointments, doctors, patients] = await Promise.all([
-      appointmentsApi.list({ limit }),
-      doctorsApi.list({ limit }),
-      patientsApi.list({ limit }),
-    ])
-
-    const doctorMap = new Map<string, Doctor>(doctors.map((d) => [d.id, d]))
-    const patientMap = new Map<string, Patient>(patients.map((p) => [p.id, p]))
-
-    // Group appointments by (doctorId, patientId)
-    type Key = string
-    const groups = new Map<Key, Appointment[]>()
-    for (const appt of appointments) {
-      const key = `${appt.doctorId}::${appt.patientId}`
-      const arr = groups.get(key) ?? []
-      arr.push(appt)
-      groups.set(key, arr)
-    }
-
-    const entries: TrackingEntry[] = []
-    for (const [key, appts] of groups.entries()) {
-      const [doctorId, patientId] = key.split('::')
-      const doctor = doctorMap.get(doctorId)
-      const patient = patientMap.get(patientId)
-      if (!doctor || !patient) continue
-
-      const sorted = [...appts].sort(
-        (a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime(),
-      )
-      const last = sorted[0]
-      const upcoming = sorted.filter(
-        (a) => new Date(a.appointmentDate) > new Date() && a.status !== 'cancelled',
-      )[0]
-
-      entries.push({
-        patient,
-        doctor,
-        lastAppointmentDate: last?.appointmentDate,
-        nextAppointmentDate: upcoming?.appointmentDate,
-        appointmentCount: appts.length,
-        lastStatus: last?.status ?? 'unknown',
-      })
-    }
-
-    return entries
+    const res = await client.get('/admin/tracking', { params: { limit } })
+    const raw: unknown[] = res.data?.data ?? []
+    return raw.map((item) => {
+      const entry = item as Record<string, unknown>
+      return {
+        patient: mapPatient(entry.patient),
+        doctor: mapDoctor(entry.doctor),
+        lastAppointmentDate: entry.lastAppointmentDate as string | undefined,
+        nextAppointmentDate: entry.nextAppointmentDate as string | undefined,
+        appointmentCount: Number(entry.appointmentCount ?? 0),
+        consultationCount: Number(entry.consultationCount ?? 0),
+        visitCount: Number(entry.visitCount ?? 0),
+        interactionCount: Number(entry.interactionCount ?? 0),
+        lastActivityAt: String(entry.lastActivityAt ?? ''),
+        lastStatus: String(entry.lastStatus ?? 'unknown'),
+      }
+    })
   },
 
   getDashboardStats: async (): Promise<DashboardStats> => {
