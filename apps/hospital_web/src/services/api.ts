@@ -16,7 +16,7 @@ const getApiBaseUrl = (): string => {
 const client = axios.create({
   baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10_000,
+  timeout: 20_000,
 })
 
 client.interceptors.request.use((config) => {
@@ -27,15 +27,31 @@ client.interceptors.request.use((config) => {
 
 client.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('tosumo_token')
       localStorage.removeItem('tosumo_user')
       window.location.href = '/login'
     }
+
+    const config = err.config
+    const attempts = config?._retryCount ?? 0
+    const status = err.response?.status
+    const retryable = ['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK'].includes(err.code) || status >= 500
+    if (config && config.method?.toLowerCase() === 'get' && attempts < 1 && retryable && status !== 401) {
+      config._retryCount = attempts + 1
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      return client.request(config)
+    }
     return Promise.reject(err)
   },
 )
+
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    _retryCount?: number
+  }
+}
 
 /** Return a useful API error message without hiding the server's explanation. */
 export function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -360,11 +376,11 @@ export const appointmentsApi = {
  * The "treating doctor" for a patient is the one with the most appointments.
  */
 export const trackingApi = {
-  getAll: async (): Promise<TrackingEntry[]> => {
+  getAll: async (limit = 500): Promise<TrackingEntry[]> => {
     const [appointments, doctors, patients] = await Promise.all([
-      appointmentsApi.list({ limit: 500 }),
-      doctorsApi.list({ limit: 200 }),
-      patientsApi.list({ limit: 500 }),
+      appointmentsApi.list({ limit }),
+      doctorsApi.list({ limit }),
+      patientsApi.list({ limit }),
     ])
 
     const doctorMap = new Map<string, Doctor>(doctors.map((d) => [d.id, d]))

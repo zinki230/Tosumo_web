@@ -23,27 +23,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     ;(async () => {
-      try {
-        const [s, tracking, summary] = await Promise.all([
-          trackingApi.getDashboardStats(),
-          trackingApi.getAll(),
-          isSystemAdmin ? adminApi.dashboard().catch(() => null) : Promise.resolve(null),
-        ])
-        setStats(s)
-        setAdminStats(summary)
-        // 5 most-recently-seen relationships
-        const sorted = [...tracking].sort((a, b) => {
+      const [statsResult, trackingResult, summaryResult] = await Promise.allSettled([
+        trackingApi.getDashboardStats(),
+        trackingApi.getAll(50),
+        isSystemAdmin ? adminApi.dashboard() : Promise.resolve(null),
+      ])
+
+      if (statsResult.status === 'fulfilled') setStats(statsResult.value)
+      if (trackingResult.status === 'fulfilled') {
+        // Show the eight most-recently-seen relationships from a small sample.
+        const sorted = [...trackingResult.value].sort((a, b) => {
           const da = a.lastAppointmentDate ? new Date(a.lastAppointmentDate).getTime() : 0
           const db = b.lastAppointmentDate ? new Date(b.lastAppointmentDate).getTime() : 0
           return db - da
         })
         setRecent(sorted.slice(0, 8))
-      } catch (e) {
-        setError('Impossible de charger les données. Vérifiez que le backend est démarré.')
-        console.error(e)
-      } finally {
-        setLoading(false)
       }
+      if (summaryResult.status === 'fulfilled' && summaryResult.value) setAdminStats(summaryResult.value)
+
+      const errors = [statsResult, trackingResult, summaryResult].filter((result) => result.status === 'rejected')
+      if (errors.length) setError('Certaines données mettent du temps à répondre. Les autres sections restent disponibles ; actualisez la page dans un instant.')
+      setLoading(false)
     })()
   }, [isSystemAdmin])
 
