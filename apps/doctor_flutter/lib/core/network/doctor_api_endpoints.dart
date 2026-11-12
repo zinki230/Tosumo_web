@@ -7,7 +7,7 @@ class DoctorApiEndpoints {
     // Default to the live backend (seeded with demo doctors) so the app works
     // out of the box. Override with --dart-define=API_BASE_URL=<url> for local
     // development (e.g. http://localhost:3000).
-    return 'https://tosumo-web-backend-production.up.railway.app';
+    return 'https://tosumobackend-production.up.railway.app';
   }
 
   static const String auth = '/api/v1/auth';
