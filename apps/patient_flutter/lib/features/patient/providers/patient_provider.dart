@@ -517,7 +517,9 @@ class PatientNotifier extends Notifier<PatientState> {
           lastMessageDate: sent.timestamp,
           unread: 0,
           online: c.online,
-          messages: [...c.messages, sent],
+          messages: c.messages.any((message) => message.id == sent.id)
+              ? c.messages
+              : [...c.messages, sent],
         );
       }
       return c;
@@ -535,7 +537,7 @@ class PatientNotifier extends Notifier<PatientState> {
           participantInitials: c.participantInitials,
           lastMessage: message.text,
           lastMessageDate: message.timestamp,
-          unread: c.unread + 1,
+          unread: message.senderRole == 'patient' ? c.unread : c.unread + 1,
           online: c.online,
           messages: [...c.messages, message],
         );

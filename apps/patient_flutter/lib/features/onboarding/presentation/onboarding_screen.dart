@@ -23,28 +23,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   static const List<_OnboardingSlide> _slides = [
     _OnboardingSlide(
       animation: 'assets/animations/onboarding_01.webm',
-      image: 'assets/images/splash_01.jpg',
       title: 'Bienvenue chez TOSUMO',
       description:
           'Votre médecin vous accueille. TOSUMO centralise tout votre dossier médical en un seul endroit sécurisé, toujours à portée de main.',
     ),
     _OnboardingSlide(
       animation: 'assets/animations/onboarding_02.webm',
-      image: 'assets/images/splash_02.jpg',
       title: 'Votre carte patient',
       description:
           'Toutes vos informations de santé réunies sur un seul support.',
     ),
     _OnboardingSlide(
       animation: 'assets/animations/onboarding_03.webm',
-      image: 'assets/images/splash_03.jpg',
       title: 'Accès instantané par QR',
       description:
           'Un simple code QR suffit pour ouvrir votre dossier médical en quelques secondes, en toute sécurité.',
     ),
     _OnboardingSlide(
       animation: 'assets/animations/onboarding_04.webm',
-      image: 'assets/images/splash_04.jpg',
       title: 'Ensemble pour la santé',
       description:
           'Avec TOSUMO, votre médecin vous accompagne au quotidien. Prenez vos rendez-vous, consultations et ordonnances en toute confiance.',
@@ -106,15 +102,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           flex: 5,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(AppRadius.xl),
-                            child: s.animation == null
-                                ? Image.asset(
-                                    s.image,
-                                    fit: BoxFit.contain,
-                                  )
-                                : _OnboardingAnimation(
-                                    asset: s.animation!,
-                                    fallbackImage: s.image,
-                                  ),
+                            child: _OnboardingAnimation(asset: s.animation),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
@@ -202,14 +190,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnboardingSlide {
-  final String? animation;
-  final String image;
+  final String animation;
   final String title;
   final String description;
 
   const _OnboardingSlide({
-    this.animation,
-    required this.image,
+    required this.animation,
     required this.title,
     required this.description,
   });
@@ -217,12 +203,8 @@ class _OnboardingSlide {
 
 class _OnboardingAnimation extends StatefulWidget {
   final String asset;
-  final String fallbackImage;
 
-  const _OnboardingAnimation({
-    required this.asset,
-    required this.fallbackImage,
-  });
+  const _OnboardingAnimation({required this.asset});
 
   @override
   State<_OnboardingAnimation> createState() => _OnboardingAnimationState();
@@ -261,17 +243,13 @@ class _OnboardingAnimationState extends State<_OnboardingAnimation> {
   @override
   Widget build(BuildContext context) {
     if (_hasError) {
-      return Image.asset(
-        widget.fallbackImage,
-        fit: BoxFit.contain,
+      return const Center(
+        child: Icon(LucideIcons.circleAlert, color: AppColors.mutedForeground, size: 32),
       );
     }
 
     if (!_controller.value.isInitialized) {
-      return Image.asset(
-        widget.fallbackImage,
-        fit: BoxFit.contain,
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return Center(

@@ -34,6 +34,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isTyping = false;
+  bool _sendingMessage = false;
 
   List<ChatConversation> _conversations = [];
   List<ChatMessage> _messages = [];
@@ -133,8 +134,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _selectedConversation == null) return;
+    if (text.isEmpty || _selectedConversation == null || _sendingMessage) return;
     _messageController.clear();
+    setState(() => _sendingMessage = true);
     try {
       await ref.read(chatRepositoryProvider).sendMessage(
         _selectedConversation!.id,
@@ -157,6 +159,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           SnackBar(content: Text(ErrorMapper.fromException(e).message)),
         );
       }
+    } finally {
+      if (mounted) setState(() => _sendingMessage = false);
     }
   }
 
@@ -435,7 +439,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isMe ? AppColors.primary : AppColors.card,
+                        color: isMe ? AppColors.primary : AppColors.white,
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(AppRadius.lg),
                           topRight: const Radius.circular(AppRadius.lg),

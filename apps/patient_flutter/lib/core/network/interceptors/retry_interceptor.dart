@@ -35,6 +35,9 @@ class RetryInterceptor extends Interceptor {
   }
 
   bool _shouldRetry(DioException err) {
+    // A timed-out POST may already have been committed by the server. Replaying
+    // it can create duplicate chat messages, visits, or appointments.
+    if (err.requestOptions.method.toUpperCase() == 'POST') return false;
     return err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.connectionError ||
