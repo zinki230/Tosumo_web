@@ -16,13 +16,11 @@ import '../../../../core/network/api_providers.dart';
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? registrationData;
 
-  const OtpVerificationScreen({
-    super.key,
-    this.registrationData,
-  });
+  const OtpVerificationScreen({super.key, this.registrationData});
 
   @override
-  ConsumerState<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+  ConsumerState<OtpVerificationScreen> createState() =>
+      _OtpVerificationScreenState();
 }
 
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
@@ -32,7 +30,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     (_) => TextEditingController(),
   );
   final _emailController = TextEditingController();
-  final List<FocusNode> _focusNodes = List.generate(_digitCount, (_) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(
+    _digitCount,
+    (_) => FocusNode(),
+  );
   int _timeLeft = 300;
   int _resendLeft = 60;
   bool _loading = false;
@@ -44,8 +45,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
   String get _phone =>
       (widget.registrationData?['phone'] as String? ?? '').trim().isEmpty
-          ? '+237'
-          : (widget.registrationData?['phone'] as String? ?? '+237');
+      ? '+237'
+      : (widget.registrationData?['phone'] as String? ?? '+237');
 
   @override
   void initState() {
@@ -117,7 +118,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   String get _code => _controllers.map((c) => c.text).join();
-  bool get _isComplete => _code.length == _digitCount && _code.characters.every((c) => c.isNotEmpty);
+  bool get _isComplete =>
+      _code.length == _digitCount &&
+      _code.characters.every((c) => c.isNotEmpty);
 
   Future<bool> _sendOtp() async {
     if (_channel == null) return false;
@@ -129,10 +132,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           setState(() => _sendError = 'Entrez une adresse e-mail valide.');
           return false;
         }
-        await apiClient.post(ApiEndpoints.sendEmailOtp, data: {
-          'email': email,
-          'purpose': 'registration',
-        });
+        await apiClient.post(
+          ApiEndpoints.sendEmailOtp,
+          data: {'email': email, 'purpose': 'registration'},
+        );
       } else {
         await apiClient.post(ApiEndpoints.sendOtp, data: {'phone': _phone});
       }
@@ -149,11 +152,18 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       return true;
     } catch (e) {
       if (mounted) {
-        final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
+        final t = ref
+            .read(localizationProvider(ref.read(localeProvider)))
+            .asData
+            ?.value;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().contains('EMAIL_ALREADY_REGISTERED')
-              ? 'Cette adresse e-mail est déjà utilisée.'
-              : (t?.t('otp.sendFailed') ?? 'Échec de l’envoi du code.'))),
+          SnackBar(
+            content: Text(
+              e.toString().contains('EMAIL_ALREADY_REGISTERED')
+                  ? 'Cette adresse e-mail est déjà utilisée.'
+                  : (t?.t('otp.sendFailed') ?? 'Échec de l’envoi du code.'),
+            ),
+          ),
         );
       }
       return false;
@@ -168,25 +178,29 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       try {
         if (_channel == 'email') {
           final email = _emailController.text.trim().toLowerCase();
-          await apiClient.post(ApiEndpoints.verifyEmailOtp, data: {
-            'email': email,
-            'code': _code,
-            'purpose': 'registration',
-          });
-          ref.read(registrationProvider.notifier).setRegistrationData(email: email);
+          await apiClient.post(
+            ApiEndpoints.verifyEmailOtp,
+            data: {'email': email, 'code': _code, 'purpose': 'registration'},
+          );
+          ref
+              .read(registrationProvider.notifier)
+              .setRegistrationData(email: email);
         } else {
-          await apiClient.post(ApiEndpoints.verifyOtp, data: {
-            'phone': _phone,
-            'code': _code,
-          });
+          await apiClient.post(
+            ApiEndpoints.verifyOtp,
+            data: {'phone': _phone, 'code': _code},
+          );
         }
       } catch (_) {
         if (!mounted) return;
-        final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
+        final t = ref
+            .read(localizationProvider(ref.read(localeProvider)))
+            .asData
+            ?.value;
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t?.t('otp.invalidCode') ?? '')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t?.t('otp.invalidCode') ?? '')));
         return;
       }
       if (!mounted) return;
@@ -196,23 +210,20 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       });
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
-      ref.read(registrationProvider.notifier).setStep(
-        RegistrationStep.generatingIdentity,
-      );
-      context.push(
-        '/onboarding/personal-info',
-        extra: {
-          'role': 'patient',
-          'phone': (widget.registrationData?['phone'] as String?) ?? '',
-        },
-      );
+      ref
+          .read(registrationProvider.notifier)
+          .setStep(RegistrationStep.generatingIdentity);
+      context.push('/onboarding/identity-generation');
     } catch (_) {
       if (!mounted) return;
-      final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
+      final t = ref
+          .read(localizationProvider(ref.read(localeProvider)))
+          .asData
+          ?.value;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t?.t('otp.invalidCode') ?? '')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t?.t('otp.invalidCode') ?? '')));
     }
   }
 
@@ -266,7 +277,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  height: 6, width: 56,
+                  height: 6,
+                  width: 56,
                   decoration: BoxDecoration(
                     color: AppColors.muted,
                     borderRadius: BorderRadius.circular(3),
@@ -274,7 +286,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
                 const SizedBox(width: 4),
                 Container(
-                  height: 6, width: 56,
+                  height: 6,
+                  width: 56,
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(3),
@@ -282,7 +295,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
                 const SizedBox(width: 4),
                 Container(
-                  height: 6, width: 56,
+                  height: 6,
+                  width: 56,
                   decoration: BoxDecoration(
                     color: AppColors.muted,
                     borderRadius: BorderRadius.circular(3),
@@ -315,7 +329,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                     const AnimatedMount(
                       animation: 'fadeInUp',
                       delay: 0,
-                      child: BrandLogo(size: BrandLogoSize.lg, showTagline: true),
+                      child: BrandLogo(
+                        size: BrandLogoSize.lg,
+                        showTagline: true,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     AnimatedMount(
@@ -336,10 +353,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                             TextSpan(
                               text: _channel == 'email'
                                   ? (_channel == null
-                                      ? 'Choisissez comment recevoir votre code.'
-                                      : _channel == 'email'
-                                          ? 'Le code sera envoyé à '
-                                          : '${t?.t('otp.subtitle') ?? ''} ')
+                                        ? 'Choisissez comment recevoir votre code.'
+                                        : _channel == 'email'
+                                        ? 'Le code sera envoyé à '
+                                        : '${t?.t('otp.subtitle') ?? ''} ')
                                   : '${t?.t('otp.subtitle') ?? ''} ',
                               style: const TextStyle(
                                 fontSize: 14,
@@ -349,7 +366,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                 TextSpan(
                                   text: _channel == null
                                       ? ''
-                                      : (_channel == 'email' ? _maskedEmail : _phone),
+                                      : (_channel == 'email'
+                                            ? _maskedEmail
+                                            : _phone),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     color: AppColors.foreground,
@@ -365,13 +384,22 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                     const SizedBox(height: 20),
                     SegmentedButton<String>(
                       segments: const [
-                        ButtonSegment(value: 'sms', label: Text('SMS'), icon: Icon(LucideIcons.messageSquare)),
-                        ButtonSegment(value: 'email', label: Text('E-mail'), icon: Icon(LucideIcons.mail)),
+                        ButtonSegment(
+                          value: 'sms',
+                          label: Text('SMS'),
+                          icon: Icon(LucideIcons.messageSquare),
+                        ),
+                        ButtonSegment(
+                          value: 'email',
+                          label: Text('E-mail'),
+                          icon: Icon(LucideIcons.mail),
+                        ),
                       ],
                       selected: _channel == null ? <String>{} : {_channel!},
                       emptySelectionAllowed: true,
-                      onSelectionChanged: (selection) =>
-                          _selectChannel(selection.isEmpty ? null : selection.first),
+                      onSelectionChanged: (selection) => _selectChannel(
+                        selection.isEmpty ? null : selection.first,
+                      ),
                     ),
                     if (_channel == 'email' && !_otpSent) ...[
                       const SizedBox(height: 16),
@@ -384,109 +412,128 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           labelText: 'Adresse e-mail',
                           prefixIcon: const Icon(LucideIcons.mail),
                           errorText: _sendError,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
                         ),
                       ),
                     ],
                     const SizedBox(height: 24),
-                    if (_otpSent) AnimatedMount(
-                      animation: 'fadeInUp',
-                      delay: 200,
-                      child: GestureDetector(
-                        onLongPress: _pasteOtp,
-                        child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_digitCount, (i) {
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              left: i > 0 ? 8 : 0,
-                            ),
-                            child: SizedBox(
-                              width: 48,
-                              height: 56,
-                              child: TextField(
-                                controller: _controllers[i],
-                                focusNode: _focusNodes[i],
-                                enabled: !_loading,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600,
+                    if (_otpSent)
+                      AnimatedMount(
+                        animation: 'fadeInUp',
+                        delay: 200,
+                        child: GestureDetector(
+                          onLongPress: _pasteOtp,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(_digitCount, (i) {
+                              return Padding(
+                                padding: EdgeInsets.only(left: i > 0 ? 8 : 0),
+                                child: SizedBox(
+                                  width: 48,
+                                  height: 56,
+                                  child: TextField(
+                                    controller: _controllers[i],
+                                    focusNode: _focusNodes[i],
+                                    enabled: !_loading,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: AppColors.muted,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.lg,
+                                        ),
+                                        borderSide: const BorderSide(
+                                          color: AppColors.border,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.lg,
+                                        ),
+                                        borderSide: const BorderSide(
+                                          color: AppColors.border,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.lg,
+                                        ),
+                                        borderSide: const BorderSide(
+                                          color: AppColors.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    inputFormatters: [
+                                      LengthLimitingTextInputFormatter(1),
+                                    ],
+                                    keyboardType: TextInputType.none,
+                                    onChanged: (v) {
+                                      if (v.isNotEmpty && i < _digitCount - 1) {
+                                        _focusNodes[i + 1].requestFocus();
+                                      }
+                                    },
+                                  ),
                                 ),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: AppColors.muted,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    borderSide: const BorderSide(color: AppColors.border, width: 2),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    borderSide: const BorderSide(color: AppColors.border, width: 2),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                                  ),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                inputFormatters: [
-                                  LengthLimitingTextInputFormatter(1),
-                                ],
-                                keyboardType: TextInputType.none,
-                                onChanged: (v) {
-                                  if (v.isNotEmpty && i < _digitCount - 1) {
-                                    _focusNodes[i + 1].requestFocus();
-                                  }
-                                },
-                              ),
-                            ),
-                          );
-                        }),
+                              );
+                            }),
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 32),
-                    if (_otpSent) AnimatedMount(
-                      animation: 'fadeInUp',
-                      delay: 300,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            LucideIcons.timer,
-                            size: 16,
-                            color: AppColors.mutedForeground,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Code : ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: _timeLeft <= 10
-                                  ? AppColors.destructive
-                                  : AppColors.foreground,
+                    if (_otpSent)
+                      AnimatedMount(
+                        animation: 'fadeInUp',
+                        delay: 300,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              LucideIcons.timer,
+                              size: 16,
+                              color: AppColors.mutedForeground,
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: _resendLeft <= 0 && !_loading ? _resendOtp : null,
-                            child: Text(
-                              _resendLeft > 0
-                                  ? 'Renvoyer dans ${_resendLeft}s'
-                                  : (t?.t('otp.clickHere') ?? 'Renvoyer'),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Code : ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
                               style: TextStyle(
-                                fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: _resendLeft > 0 || _loading
-                                    ? AppColors.mutedForeground
-                                    : AppColors.primary,
+                                color: _timeLeft <= 10
+                                    ? AppColors.destructive
+                                    : AppColors.foreground,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: _resendLeft <= 0 && !_loading
+                                  ? _resendOtp
+                                  : null,
+                              child: Text(
+                                _resendLeft > 0
+                                    ? 'Renvoyer dans ${_resendLeft}s'
+                                    : (t?.t('otp.clickHere') ?? 'Renvoyer'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: _resendLeft > 0 || _loading
+                                      ? AppColors.mutedForeground
+                                      : AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 32),
                     AnimatedMount(
                       animation: 'fadeInUp',
@@ -538,19 +585,28 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           : SizedBox(
                               width: 200,
                               child: ElevatedButton(
-                        onPressed: _loading
-                            ? null
-                            : (_otpSent
-                                ? (_isComplete ? _verify : null)
-                                : (_channel == null ? null : _sendOtp)),
+                                onPressed: _loading
+                                    ? null
+                                    : (_otpSent
+                                          ? (_isComplete ? _verify : null)
+                                          : (_channel == null
+                                                ? null
+                                                : _sendOtp)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: AppColors.primaryForeground,
-                                  disabledBackgroundColor: AppColors.primary.withAlpha(128),
-                                  disabledForegroundColor: AppColors.primaryForeground.withAlpha(128),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  disabledBackgroundColor: AppColors.primary
+                                      .withAlpha(128),
+                                  disabledForegroundColor: AppColors
+                                      .primaryForeground
+                                      .withAlpha(128),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(AppRadius.full),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.full,
+                                    ),
                                   ),
                                   textStyle: const TextStyle(
                                     fontSize: 16,
@@ -575,7 +631,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                           Text(t?.t('otp.verifying') ?? ''),
                                         ],
                                       )
-                                    : Text(_otpSent ? (t?.t('otp.verify') ?? 'Vérifier') : 'Envoyer le code'),
+                                    : Text(
+                                        _otpSent
+                                            ? (t?.t('otp.verify') ?? 'Vérifier')
+                                            : 'Envoyer le code',
+                                      ),
                               ),
                             ),
                     ),
@@ -583,64 +643,64 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
               ),
             ),
-            if (_otpSent) Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.muted.withAlpha(128),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+            if (_otpSent)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.muted.withAlpha(128),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
                 ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final row in [
-                      ['1', '2', '3'],
-                      ['4', '5', '6'],
-                      ['7', '8', '9'],
-                      ['', '0', '⌫'],
-                    ])
-                      Row(
-                        children: row.map((n) {
-                          return Expanded(
-                            child: GestureDetector(
-                              onTap: _loading
-                                  ? null
-                                  : () {
-                                      if (n == '⌫') {
-                                        _onBackspace();
-                                      } else if (n.isNotEmpty) {
-                                        _onDigitPressed(n);
-                                      }
-                                    },
-                              child: Container(
-                                height: 56,
-                                alignment: Alignment.center,
-                                child: n.isEmpty
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final row in [
+                        ['1', '2', '3'],
+                        ['4', '5', '6'],
+                        ['7', '8', '9'],
+                        ['', '0', '⌫'],
+                      ])
+                        Row(
+                          children: row.map((n) {
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: _loading
                                     ? null
-                                    : Text(
-                                        n,
-                                        style: TextStyle(
-                                          fontSize: n == '⌫' ? 22 : 24,
-                                          fontWeight: FontWeight.w500,
+                                    : () {
+                                        if (n == '⌫') {
+                                          _onBackspace();
+                                        } else if (n.isNotEmpty) {
+                                          _onDigitPressed(n);
+                                        }
+                                      },
+                                child: Container(
+                                  height: 56,
+                                  alignment: Alignment.center,
+                                  child: n.isEmpty
+                                      ? null
+                                      : Text(
+                                          n,
+                                          style: TextStyle(
+                                            fontSize: n == '⌫' ? 22 : 24,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
-                                      ),
+                                ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                  ],
+                            );
+                          }).toList(),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 }
-

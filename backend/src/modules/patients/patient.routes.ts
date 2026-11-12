@@ -7,6 +7,7 @@ import prisma from '@shared/database/prisma';
 
 const router = Router();
 const controller = new PatientController();
+router.delete('/account', authenticate, controller.deleteAccount);
 router.get('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.INSTITUTION_ADMIN), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const limit = Math.min(Number(req.query.limit ?? 100), 500);

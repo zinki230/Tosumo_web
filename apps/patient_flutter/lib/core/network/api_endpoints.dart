@@ -21,6 +21,7 @@ class ApiEndpoints {
   static const String patients = '/api/v1/patients';
   static String patient(String id) => '$patients/$id';
   static const String patientProfile = '$patients/profile';
+  static const String patientAccount = '$patients/account';
   static const String patientOnboard = '$patients/onboard';
   static const String patientMedicalCard = '$patients/medical-card';
   static const String patientMedicalBooklets = '$patients/medical-booklets';
@@ -36,8 +37,10 @@ class ApiEndpoints {
   static String appointmentApprove(String id) => '$appointments/$id/approve';
   static String appointmentConfirm(String id) => '$appointments/$id/confirm';
   static String appointmentCancel(String id) => '$appointments/$id/cancel';
-  static String appointmentReschedule(String id) => '$appointments/$id/reschedule';
-  static const String appointmentAvailableSlots = '$appointments/available-slots';
+  static String appointmentReschedule(String id) =>
+      '$appointments/$id/reschedule';
+  static const String appointmentAvailableSlots =
+      '$appointments/available-slots';
   static const String appointmentUpcoming = '$appointments/upcoming';
 
   static const String doctors = '/api/v1/doctors';
@@ -76,15 +79,23 @@ class ApiEndpoints {
   static const String paymentInitiate = '$payments/initiate';
 
   static const String medicalRecords = '/api/v1/medical-records';
-  static const String medicalRecordsConsultations = '$medicalRecords/consultations';
-  static String medicalRecordsConsultation(String id) => '$medicalRecords/consultations/$id';
+  static const String medicalRecordsConsultations =
+      '$medicalRecords/consultations';
+  static String medicalRecordsConsultation(String id) =>
+      '$medicalRecords/consultations/$id';
   static const String medicalRecordsLabResults = '$medicalRecords/lab-results';
-  static String medicalRecordsLabResult(String id) => '$medicalRecords/lab-results/$id';
-  static const String medicalRecordsImagingResults = '$medicalRecords/imaging-results';
-  static String medicalRecordsImagingResult(String id) => '$medicalRecords/imaging-results/$id';
-  static const String medicalRecordsPrescriptions = '$medicalRecords/prescriptions';
-  static String medicalRecordsPrescription(String id) => '$medicalRecords/prescriptions/$id';
-  static String medicalRecordsPrescriptionFulfill(String id) => '$medicalRecords/prescriptions/$id/fulfill';
+  static String medicalRecordsLabResult(String id) =>
+      '$medicalRecords/lab-results/$id';
+  static const String medicalRecordsImagingResults =
+      '$medicalRecords/imaging-results';
+  static String medicalRecordsImagingResult(String id) =>
+      '$medicalRecords/imaging-results/$id';
+  static const String medicalRecordsPrescriptions =
+      '$medicalRecords/prescriptions';
+  static String medicalRecordsPrescription(String id) =>
+      '$medicalRecords/prescriptions/$id';
+  static String medicalRecordsPrescriptionFulfill(String id) =>
+      '$medicalRecords/prescriptions/$id/fulfill';
 
   static const String upload = '/api/v1/upload';
   static const String uploadMultiple = '$upload/multiple';

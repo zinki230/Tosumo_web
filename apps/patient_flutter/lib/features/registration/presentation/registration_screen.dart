@@ -15,9 +15,7 @@ import '../../../shared/widgets/app_animated_mount.dart';
 import '../../../shared/widgets/brand_logo.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
-  final String? initialPhone;
-
-  const RegistrationScreen({super.key, this.initialPhone});
+  const RegistrationScreen({super.key});
 
   @override
   ConsumerState<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -37,14 +35,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   bool _phoneExists = false;
   String? _phoneCheckFailed;
 
-  bool get _profileMode => widget.initialPhone != null;
-
   @override
   void initState() {
     super.initState();
-    if (widget.initialPhone != null) {
-      _phoneController.text = widget.initialPhone!;
-    }
   }
 
   @override
@@ -59,7 +52,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   bool _validate() {
-    final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
+    final t = ref
+        .read(localizationProvider(ref.read(localeProvider)))
+        .asData
+        ?.value;
     final newErrors = <String, String>{};
     if (!isValidCameroonPhone(_phoneController.text)) {
       newErrors['phone'] = t?.t('registration.invalidPhone') ?? '';
@@ -82,10 +78,18 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     if (_monthController.text.isEmpty || m == null || m < 1 || m > 12) {
       newErrors['month'] = t?.t('registration.invalid') ?? '';
     }
-    if (_yearController.text.isEmpty || y == null || y < 1900 || y > DateTime.now().year) {
+    if (_yearController.text.isEmpty ||
+        y == null ||
+        y < 1900 ||
+        y > DateTime.now().year) {
       newErrors['year'] = t?.t('registration.invalid') ?? '';
     }
-    if (d != null && m != null && y != null && !newErrors.containsKey('day') && !newErrors.containsKey('month') && !newErrors.containsKey('year')) {
+    if (d != null &&
+        m != null &&
+        y != null &&
+        !newErrors.containsKey('day') &&
+        !newErrors.containsKey('month') &&
+        !newErrors.containsKey('year')) {
       try {
         DateTime(y, m, d);
       } catch (_) {
@@ -101,43 +105,16 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
   Future<void> _handleContinue() async {
     if (_checkingPhone) return;
-    final t = ref.read(localizationProvider(ref.read(localeProvider))).asData?.value;
+    final t = ref
+        .read(localizationProvider(ref.read(localeProvider)))
+        .asData
+        ?.value;
     if (!_validate()) return;
     final phone = normalizeCameroonPhone(_phoneController.text);
     if (phone.isEmpty) {
-      setState(() => _errors['phone'] = t?.t('registration.invalidPhone') ?? '');
-      return;
-    }
-
-    // Profile mode: reached after OTP verification. The phone is already known
-    // and verified, so skip the duplicate check and go straight to onboarding.
-    if (_profileMode) {
-      final dateOfBirth = DateTime(
-        int.parse(_yearController.text),
-        int.parse(_monthController.text),
-        int.parse(_dayController.text),
-      ).toIso8601String();
-      ref.read(registrationProvider.notifier).setRegistrationData(
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        gender: _gender ?? '',
-        dateOfBirth: dateOfBirth,
-        city: _city,
-        role: 'patient',
-        phone: phone,
+      setState(
+        () => _errors['phone'] = t?.t('registration.invalidPhone') ?? '',
       );
-      context.push('/onboarding/identity-generation', extra: {
-        'registrationData': {
-          'firstName': _firstNameController.text,
-          'lastName': _lastNameController.text,
-          'gender': _gender,
-          'day': _dayController.text,
-          'month': _monthController.text,
-          'year': _yearController.text,
-          'city': _city,
-          'phone': phone,
-        },
-      });
       return;
     }
 
@@ -179,30 +156,35 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       int.parse(_dayController.text),
     ).toIso8601String();
 
-    ref.read(registrationProvider.notifier).setRegistrationData(
-      firstName: _firstNameController.text,
-      lastName: _lastNameController.text,
-      gender: _gender ?? '',
-      dateOfBirth: dateOfBirth,
-      city: _city,
-      role: 'patient',
-      phone: phone,
-    );
+    ref
+        .read(registrationProvider.notifier)
+        .setRegistrationData(
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          gender: _gender ?? '',
+          dateOfBirth: dateOfBirth,
+          city: _city,
+          role: 'patient',
+          phone: phone,
+        );
     ref.read(registrationProvider.notifier).setStep(RegistrationStep.otp);
 
-    context.push('/otp', extra: {
-      'role': 'patient',
-      'registrationData': {
-        'firstName': _firstNameController.text,
-        'lastName': _lastNameController.text,
-        'gender': _gender,
-        'day': _dayController.text,
-        'month': _monthController.text,
-        'year': _yearController.text,
-        'city': _city,
-        'phone': phone,
+    context.push(
+      '/otp',
+      extra: {
+        'role': 'patient',
+        'registrationData': {
+          'firstName': _firstNameController.text,
+          'lastName': _lastNameController.text,
+          'gender': _gender,
+          'day': _dayController.text,
+          'month': _monthController.text,
+          'year': _yearController.text,
+          'city': _city,
+          'phone': phone,
+        },
       },
-    });
+    );
   }
 
   @override
@@ -254,13 +236,20 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withAlpha(25),
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
                 child: Text(
-                  t?.t('registration.step', params: {'current': _profileMode ? '2' : '1', 'total': '3'}) ?? '',
+                  t?.t(
+                        'registration.step',
+                        params: {'current': '1', 'total': '3'},
+                      ) ??
+                      '',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -282,13 +271,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              if (!_profileMode) ...[
-                _buildPhoneField(
-                  delay: 0,
-                  t: t,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-              ],
+              _buildPhoneField(delay: 0, t: t),
+              const SizedBox(height: AppSpacing.xl),
               _buildField(
                 delay: 50,
                 label: t?.t('registration.firstName') ?? '',
@@ -321,7 +305,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.primaryForeground,
                     disabledBackgroundColor: AppColors.primary.withAlpha(128),
-                    disabledForegroundColor: AppColors.primaryForeground.withAlpha(128),
+                    disabledForegroundColor: AppColors.primaryForeground
+                        .withAlpha(128),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.full),
@@ -360,7 +345,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildPhoneField({required int delay, required AppLocalization? t, bool readOnly = false}) {
+  Widget _buildPhoneField({
+    required int delay,
+    required AppLocalization? t,
+    bool readOnly = false,
+  }) {
     return AnimatedMount(
       animation: 'fadeInUp',
       delay: delay,
@@ -395,7 +384,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               }
             },
             decoration: InputDecoration(
-              prefixIcon: const Icon(LucideIcons.phone, size: 16, color: AppColors.foreground),
+              prefixIcon: const Icon(
+                LucideIcons.phone,
+                size: 16,
+                color: AppColors.foreground,
+              ),
               prefixText: '+237 ',
               prefixStyle: const TextStyle(
                 fontSize: 15,
@@ -415,7 +408,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.xl),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -538,7 +534,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.xl),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -660,7 +659,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildBirthdayField({required int delay, required AppLocalization? t}) {
+  Widget _buildBirthdayField({
+    required int delay,
+    required AppLocalization? t,
+  }) {
     return AnimatedMount(
       animation: 'fadeInUp',
       delay: delay,
@@ -690,29 +692,36 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             ),
             child: Row(
               children: [
-                Expanded(child: _dateInput(
-                  label: t?.t('registration.day') ?? '',
-                  controller: _dayController,
-                  placeholder: t?.t('registration.dayPlaceholder') ?? '',
-                  maxLength: 2,
-                  error: _errors['day'],
-                )),
+                Expanded(
+                  child: _dateInput(
+                    label: t?.t('registration.day') ?? '',
+                    controller: _dayController,
+                    placeholder: t?.t('registration.dayPlaceholder') ?? '',
+                    maxLength: 2,
+                    error: _errors['day'],
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.md),
-                Expanded(child: _dateInput(
-                  label: t?.t('registration.month') ?? '',
-                  controller: _monthController,
-                  placeholder: t?.t('registration.monthPlaceholder') ?? '',
-                  maxLength: 2,
-                  error: _errors['month'],
-                )),
+                Expanded(
+                  child: _dateInput(
+                    label: t?.t('registration.month') ?? '',
+                    controller: _monthController,
+                    placeholder: t?.t('registration.monthPlaceholder') ?? '',
+                    maxLength: 2,
+                    error: _errors['month'],
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.md),
-                Expanded(flex: 2, child: _dateInput(
-                  label: t?.t('registration.year') ?? '',
-                  controller: _yearController,
-                  placeholder: t?.t('registration.yearPlaceholder') ?? '',
-                  maxLength: 4,
-                  error: _errors['year'],
-                )),
+                Expanded(
+                  flex: 2,
+                  child: _dateInput(
+                    label: t?.t('registration.year') ?? '',
+                    controller: _yearController,
+                    placeholder: t?.t('registration.yearPlaceholder') ?? '',
+                    maxLength: 4,
+                    error: _errors['year'],
+                  ),
+                ),
               ],
             ),
           ),
@@ -745,10 +754,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           keyboardType: TextInputType.number,
           maxLength: maxLength,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             counterText: '',
             hintText: placeholder,
@@ -764,7 +770,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -778,7 +787,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             } else {
               controller.text = filtered;
             }
-            controller.selection = TextSelection.collapsed(offset: controller.text.length);
+            controller.selection = TextSelection.collapsed(
+              offset: controller.text.length,
+            );
           },
         ),
         if (error != null)
@@ -797,7 +808,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildLocationField({required int delay, required AppLocalization? t}) {
+  Widget _buildLocationField({
+    required int delay,
+    required AppLocalization? t,
+  }) {
     return AnimatedMount(
       animation: 'fadeInUp',
       delay: delay,
@@ -818,8 +832,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             ],
           ),
           const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _city,
+          DropdownButtonFormField<String>(
+            initialValue: _city,
             items: [
               DropdownMenuItem(
                 value: 'Yaounde',
@@ -846,7 +860,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.xl),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

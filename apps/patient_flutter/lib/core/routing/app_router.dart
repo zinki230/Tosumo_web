@@ -6,7 +6,6 @@ import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/splash/presentation/welcome_screen.dart';
 import '../../features/auth/presentation/signin_screen.dart';
 import '../../features/registration/presentation/registration_screen.dart';
-import '../../features/registration/presentation/phone_entry_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/institution_home/presentation/institution_home_screen.dart';
 import '../../features/otp_verification/presentation/otp_verification_screen.dart';
@@ -28,6 +27,7 @@ import '../../features/doctor_profile/presentation/doctor_profile_screen.dart';
 import '../../features/appointments/presentation/booking_screen.dart';
 import '../../features/emergency_mode/presentation/emergency_mode_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/card_management/presentation/card_management_screen.dart';
 import '../../features/prescriptions/presentation/prescriptions_screen.dart';
@@ -56,7 +56,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     '/otp',
     '/onboarding',
     '/onboarding/identity-generation',
-    '/onboarding/personal-info',
     '/onboarding/complete-profile',
   };
 
@@ -99,9 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         // to /onboarding/identity-generation to complete onboarding; redirecting
         // /otp to home here would race ahead of that push and skip onboarding,
         // leaving every registered user with a blank (stub) profile.
-        if (loc == '/' ||
-            loc == '/signin' ||
-            loc == '/register') {
+        if (loc == '/' || loc == '/signin' || loc == '/register') {
           return '/patient/home';
         }
         return null; // protected route or onboarding — allowed to stay
@@ -112,21 +109,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const PhoneEntryScreen(),
-      ),
-      GoRoute(
-        path: '/onboarding/personal-info',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final phone = extra?['phone'] as String?;
-          return RegistrationScreen(initialPhone: phone);
-        },
+        builder: (context, state) => const RegistrationScreen(),
       ),
       GoRoute(
         path: '/signin',
@@ -141,7 +127,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           return OtpVerificationScreen(
-            registrationData: extra?['registrationData'] as Map<String, dynamic>?,
+            registrationData:
+                extra?['registrationData'] as Map<String, dynamic>?,
           );
         },
       ),
@@ -187,30 +174,38 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/patient/doctor-profile',
                 builder: (context, state) {
                   final doctor = state.extra as DoctorProfile?;
-                  return DoctorProfileScreen(doctor: doctor ?? DoctorProfile(
-                    id: '',
-                    name: 'Inconnu',
-                    specialty: '',
-                    bio: '',
-                    hospital: '',
-                    hospitalLocation: '',
-                    nextAvailableSlot: '',
-                  ));
+                  return DoctorProfileScreen(
+                    doctor:
+                        doctor ??
+                        DoctorProfile(
+                          id: '',
+                          name: 'Inconnu',
+                          specialty: '',
+                          bio: '',
+                          hospital: '',
+                          hospitalLocation: '',
+                          nextAvailableSlot: '',
+                        ),
+                  );
                 },
               ),
               GoRoute(
                 path: '/patient/booking',
                 builder: (context, state) {
                   final doctor = state.extra as DoctorProfile?;
-                  return BookingScreen(doctor: doctor ?? DoctorProfile(
-                    id: '',
-                    name: 'Inconnu',
-                    specialty: '',
-                    bio: '',
-                    hospital: '',
-                    hospitalLocation: '',
-                    nextAvailableSlot: '',
-                  ));
+                  return BookingScreen(
+                    doctor:
+                        doctor ??
+                        DoctorProfile(
+                          id: '',
+                          name: 'Inconnu',
+                          specialty: '',
+                          bio: '',
+                          hospital: '',
+                          hospitalLocation: '',
+                          nextAvailableSlot: '',
+                        ),
+                  );
                 },
               ),
               GoRoute(
@@ -318,6 +313,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/patient/profile',
                 builder: (context, state) => const ProfileScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) => const EditProfileScreen(),
+                  ),
+                ],
               ),
               GoRoute(
                 path: '/patient/settings',

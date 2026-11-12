@@ -6,6 +6,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/providers/patient_provider.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_providers.dart';
 import '../../../core/utils/localization.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -29,6 +31,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _emergencyPhone = '';
   bool _showToast = false;
   bool _saved = false;
+  bool _deletingAccount = false;
 
   @override
   void initState() {
@@ -51,7 +54,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (emergencyJson != null) {
             try {
               final data = Map<String, dynamic>.from(
-                  const JsonDecoder().convert(emergencyJson));
+                const JsonDecoder().convert(emergencyJson),
+              );
               _emergencyName = data['name']?.toString() ?? '';
               _emergencyRelationship = data['relationship']?.toString() ?? '';
               _emergencyPhone = data['phone']?.toString() ?? '';
@@ -65,23 +69,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _saveSettings() async {
     try {
       final storage = _settingsStorage;
-      await storage.write(key: 'tosumo_push_enabled', value: _pushEnabled.toString());
-      await storage.write(key: 'tosumo_email_enabled', value: _emailEnabled.toString());
-      await storage.write(key: 'tosumo_twofactor_enabled', value: _twoFactorEnabled.toString());
-      await storage.write(key: 'tosumo_emergency_contact', value: const JsonEncoder().convert({
-        'name': _emergencyName,
-        'relationship': _emergencyRelationship,
-        'phone': _emergencyPhone,
-      }));
-      final synced = await ref.read(patientProvider.notifier).updateEmergencyContact(
-        name: _emergencyName,
-        relationship: _emergencyRelationship,
-        phone: _emergencyPhone,
+      await storage.write(
+        key: 'tosumo_push_enabled',
+        value: _pushEnabled.toString(),
       );
+      await storage.write(
+        key: 'tosumo_email_enabled',
+        value: _emailEnabled.toString(),
+      );
+      await storage.write(
+        key: 'tosumo_twofactor_enabled',
+        value: _twoFactorEnabled.toString(),
+      );
+      await storage.write(
+        key: 'tosumo_emergency_contact',
+        value: const JsonEncoder().convert({
+          'name': _emergencyName,
+          'relationship': _emergencyRelationship,
+          'phone': _emergencyPhone,
+        }),
+      );
+      final synced = await ref
+          .read(patientProvider.notifier)
+          .updateEmergencyContact(
+            name: _emergencyName,
+            relationship: _emergencyRelationship,
+            phone: _emergencyPhone,
+          );
       if (!mounted) return;
       if (!synced) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Paramètres enregistrés localement — synchronisation du contact d\'urgence impossible.')),
+          const SnackBar(
+            content: Text(
+              'Paramètres enregistrés localement — synchronisation du contact d\'urgence impossible.',
+            ),
+          ),
         );
       }
       setState(() {
@@ -106,7 +128,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Saisissez un nouveau code à 6 chiffres. Il est stocké en local sur cet appareil.'),
+            const Text(
+              'Saisissez un nouveau code à 6 chiffres. Il est stocké en local sur cet appareil.',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -123,7 +147,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
             child: const Text('Enregistrer'),
@@ -135,9 +162,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (result == null || result.isEmpty) return;
     await _settingsStorage.write(key: 'tosumo_pin', value: result);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN mis à jour (local)')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('PIN mis à jour (local)')));
     }
   }
 
@@ -154,10 +181,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       'grants': state.accessGrants.length,
       'exportedAt': DateTime.now().toIso8601String(),
     };
-    await Clipboard.setData(ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)));
+    await Clipboard.setData(
+      ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)),
+    );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Données exportées en JSON — copiées dans le presse-papiers.')),
+        const SnackBar(
+          content: Text(
+            'Données exportées en JSON — copiées dans le presse-papiers.',
+          ),
+        ),
       );
     }
   }
@@ -168,30 +201,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _requestDeleteAccount() async {
-    await showDialog<bool>(
+    if (_deletingAccount) return;
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer le compte'),
-        content: const Text('La suppression définitive du compte n\'est pas disponible dans cette version. Vous pouvez continuer à utiliser l\'application en mode démonstration.'),
+        content: const Text(
+          'Cette action supprimera définitivement votre compte, votre profil, votre dossier médical, vos rendez-vous et les données associées. Cette opération est irréversible. Voulez-vous continuer ?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Fermer')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.destructive,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer définitivement'),
+          ),
         ],
       ),
     );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      await ref.read(apiClientProvider).delete(ApiEndpoints.patientAccount);
+      for (final key in [
+        'tosumo_push_enabled',
+        'tosumo_email_enabled',
+        'tosumo_twofactor_enabled',
+        'tosumo_emergency_contact',
+        'tosumo_pin',
+      ]) {
+        await _settingsStorage.delete(key: key);
+      }
+      await ref.read(authProvider.notifier).logout();
+      if (mounted) context.go('/signin');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('La suppression du compte a échoué : $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
   }
 
   void _showLanguagePicker() {
     final locale = ref.read(localeProvider);
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 20),
               _LanguageOption(
                 label: 'Français',
@@ -233,7 +313,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: const AppBackButton(),
-        title: Text(t?.t('settings.title') ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(
+          t?.t('settings.title') ?? '',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
       ),
       body: Stack(
         children: [
@@ -246,8 +329,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   _SettingsTile(
                     icon: LucideIcons.globe,
-                    title: locale == 'fr' ? (t?.t('settings.languageFr') ?? 'Français') : (t?.t('settings.languageEn') ?? 'English'),
-                    trailing: const Icon(LucideIcons.chevronDown, size: 18, color: AppColors.mutedForeground),
+                    title: locale == 'fr'
+                        ? (t?.t('settings.languageFr') ?? 'Français')
+                        : (t?.t('settings.languageEn') ?? 'English'),
+                    trailing: const Icon(
+                      LucideIcons.chevronDown,
+                      size: 18,
+                      color: AppColors.mutedForeground,
+                    ),
                     onTap: _showLanguagePicker,
                   ),
                 ],
@@ -260,53 +349,113 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 description: t?.t('settings.emergencyContactDesc') ?? '',
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(t?.t('settings.name') ?? '', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                        Text(
+                          t?.t('settings.name') ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.mutedForeground,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         TextField(
-                          controller: TextEditingController.fromValue(TextEditingValue(text: _emergencyName)),
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(text: _emergencyName),
+                          ),
                           onChanged: (v) => _emergencyName = v,
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: t?.t('settings.name') ?? '',
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.border.withAlpha(128))),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppColors.border),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: AppColors.border.withAlpha(128),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(t?.t('settings.relationship') ?? '', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                        Text(
+                          t?.t('settings.relationship') ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.mutedForeground,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         TextField(
-                          controller: TextEditingController.fromValue(TextEditingValue(text: _emergencyRelationship)),
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(text: _emergencyRelationship),
+                          ),
                           onChanged: (v) => _emergencyRelationship = v,
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: t?.t('settings.relationship') ?? '',
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.border.withAlpha(128))),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppColors.border),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: AppColors.border.withAlpha(128),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(t?.t('settings.phone') ?? '', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                        Text(
+                          t?.t('settings.phone') ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.mutedForeground,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         TextField(
-                          controller: TextEditingController.fromValue(TextEditingValue(text: _emergencyPhone)),
+                          controller: TextEditingController.fromValue(
+                            TextEditingValue(text: _emergencyPhone),
+                          ),
                           onChanged: (v) => _emergencyPhone = v,
                           keyboardType: TextInputType.phone,
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: t?.t('settings.phone') ?? '',
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.border.withAlpha(128))),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppColors.border),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: AppColors.border.withAlpha(128),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -323,12 +472,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingsTile(
                     icon: LucideIcons.bell,
                     title: t?.t('settings.pushNotifications') ?? '',
-                    trailing: Switch(value: _pushEnabled, onChanged: (v) => setState(() => _pushEnabled = v)),
+                    trailing: Switch(
+                      value: _pushEnabled,
+                      onChanged: (v) => setState(() => _pushEnabled = v),
+                    ),
                   ),
                   _SettingsTile(
                     icon: LucideIcons.mail,
                     title: t?.t('settings.emailNotifications') ?? '',
-                    trailing: Switch(value: _emailEnabled, onChanged: (v) => setState(() => _emailEnabled = v)),
+                    trailing: Switch(
+                      value: _emailEnabled,
+                      onChanged: (v) => setState(() => _emailEnabled = v),
+                    ),
                   ),
                 ],
               ),
@@ -341,13 +496,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingsTile(
                     icon: LucideIcons.lock,
                     title: t?.t('settings.changePin') ?? '',
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18, color: AppColors.mutedForeground),
+                    trailing: const Icon(
+                      LucideIcons.chevronRight,
+                      size: 18,
+                      color: AppColors.mutedForeground,
+                    ),
                     onTap: _changePin,
                   ),
                   _SettingsTile(
                     icon: LucideIcons.shield,
                     title: t?.t('settings.twoFactorAuth') ?? '',
-                    trailing: Switch(value: _twoFactorEnabled, onChanged: (v) => setState(() => _twoFactorEnabled = v)),
+                    trailing: Switch(
+                      value: _twoFactorEnabled,
+                      onChanged: (v) => setState(() => _twoFactorEnabled = v),
+                    ),
                   ),
                 ],
               ),
@@ -360,20 +522,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingsTile(
                     icon: LucideIcons.download,
                     title: t?.t('settings.exportData') ?? '',
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18, color: AppColors.mutedForeground),
+                    trailing: const Icon(
+                      LucideIcons.chevronRight,
+                      size: 18,
+                      color: AppColors.mutedForeground,
+                    ),
                     onTap: _exportData,
                   ),
                   _SettingsTile(
                     icon: LucideIcons.trash2,
                     title: t?.t('settings.deleteAccount') ?? '',
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18, color: AppColors.destructive),
+                    trailing: const Icon(
+                      LucideIcons.chevronRight,
+                      size: 18,
+                      color: AppColors.destructive,
+                    ),
                     titleColor: AppColors.destructive,
                     onTap: _requestDeleteAccount,
                   ),
                   _SettingsTile(
                     icon: LucideIcons.logOut,
                     title: t?.t('settings.signOut') ?? '',
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18, color: AppColors.destructive),
+                    trailing: const Icon(
+                      LucideIcons.chevronRight,
+                      size: 18,
+                      color: AppColors.destructive,
+                    ),
                     titleColor: AppColors.destructive,
                     onTap: _signOut,
                   ),
@@ -386,13 +560,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _saveSettings,
-                  icon: Icon(_saved ? LucideIcons.checkCircle2 : LucideIcons.save, size: 18),
-                  label: Text(_saved ? (t?.t('settings.saved') ?? '') : (t?.t('settings.save') ?? '')),
+                  icon: Icon(
+                    _saved ? LucideIcons.checkCircle2 : LucideIcons.save,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _saved
+                        ? (t?.t('settings.saved') ?? '')
+                        : (t?.t('settings.save') ?? ''),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -402,7 +585,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Center(
                 child: Text(
                   '${t?.t('settings.version') ?? 'Version'} 1.0.0',
-                  style: TextStyle(fontSize: 13, color: AppColors.mutedForeground.withAlpha(153)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.mutedForeground.withAlpha(153),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -420,21 +606,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 borderRadius: BorderRadius.circular(16),
                 color: AppColors.card,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.primary.withAlpha(25)),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(25), blurRadius: 12, offset: const Offset(0, 4))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      const Icon(LucideIcons.checkCircle2, size: 20, color: AppColors.primary),
+                      const Icon(
+                        LucideIcons.checkCircle2,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(t?.t('settings.saved') ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                      Expanded(
+                        child: Text(
+                          t?.t('settings.saved') ?? '',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                       GestureDetector(
                         onTap: () => setState(() => _showToast = false),
-                        child: Icon(LucideIcons.x, size: 16, color: AppColors.mutedForeground.withAlpha(153)),
+                        child: Icon(
+                          LucideIcons.x,
+                          size: 16,
+                          color: AppColors.mutedForeground.withAlpha(153),
+                        ),
                       ),
                     ],
                   ),
@@ -451,7 +662,11 @@ class _SettingsSection extends StatelessWidget {
   final String title;
   final String? description;
   final List<Widget> children;
-  const _SettingsSection({required this.title, this.description, required this.children});
+  const _SettingsSection({
+    required this.title,
+    this.description,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -470,11 +685,24 @@ class _SettingsSection extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedForeground,
+                  ),
+                ),
                 if (description != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(description!, style: TextStyle(fontSize: 12, color: AppColors.mutedForeground.withAlpha(153))),
+                    child: Text(
+                      description!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.mutedForeground.withAlpha(153),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -492,7 +720,13 @@ class _SettingsTile extends StatelessWidget {
   final Widget trailing;
   final Color? titleColor;
   final VoidCallback? onTap;
-  const _SettingsTile({required this.icon, required this.title, required this.trailing, this.titleColor, this.onTap});
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.trailing,
+    this.titleColor,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +734,14 @@ class _SettingsTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: ListTile(
         leading: Icon(icon, size: 20, color: AppColors.mutedForeground),
-        title: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: titleColor ?? AppColors.foreground)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: titleColor ?? AppColors.foreground,
+          ),
+        ),
         trailing: trailing,
         contentPadding: EdgeInsets.zero,
         onTap: trailing is Switch ? null : onTap,
@@ -514,14 +755,30 @@ class _LanguageOption extends StatelessWidget {
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
-  const _LanguageOption({required this.label, required this.subtitle, required this.selected, required this.onTap});
+  const _LanguageOption({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(selected ? LucideIcons.checkCircle2 : LucideIcons.circle, color: selected ? AppColors.primary : AppColors.mutedForeground),
-      title: Text(label, style: TextStyle(fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+      leading: Icon(
+        selected ? LucideIcons.checkCircle2 : LucideIcons.circle,
+        color: selected ? AppColors.primary : AppColors.mutedForeground,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+      ),
       onTap: onTap,
     );
   }

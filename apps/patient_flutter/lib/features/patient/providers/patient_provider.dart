@@ -35,8 +35,9 @@ extension on LocalDatabase {
   String get currentActivePatientId {
     try {
       if (Hive.isBoxOpen(LocalDatabase.sessionBoxName)) {
-        return Hive.box<String>(LocalDatabase.sessionBoxName)
-                .get(LocalDatabase.activePatientIdKey, defaultValue: '') ??
+        return Hive.box<String>(
+              LocalDatabase.sessionBoxName,
+            ).get(LocalDatabase.activePatientIdKey, defaultValue: '') ??
             '';
       }
     } catch (_) {}
@@ -112,9 +113,9 @@ class PatientState {
       hospitals: hospitals ?? this.hospitals,
       chats: chats ?? this.chats,
       appointments: appointments ?? this.appointments,
-        prescriptions: prescriptions ?? this.prescriptions,
-        consultations: consultations ?? this.consultations,
-        loading: loading ?? this.loading,
+      prescriptions: prescriptions ?? this.prescriptions,
+      consultations: consultations ?? this.consultations,
+      loading: loading ?? this.loading,
       error: error ?? this.error,
     );
   }
@@ -137,8 +138,12 @@ class PatientNotifier extends Notifier<PatientState> {
         _repo.getCard(patientId).catchError((_) => null),
         _repo.getMedicalBooklet(patientId).catchError((_) => <BookletEntry>[]),
         _repo.getAuditLog(patientId).catchError((_) => <AuditEvent>[]),
-        _repo.getNotifications(patientId).catchError((_) => <NotificationModel>[]),
-        _repo.getHealthJourney(patientId).catchError((_) => <HealthJourneyEntry>[]),
+        _repo
+            .getNotifications(patientId)
+            .catchError((_) => <NotificationModel>[]),
+        _repo
+            .getHealthJourney(patientId)
+            .catchError((_) => <HealthJourneyEntry>[]),
         _repo.getAccessGrants(patientId).catchError((_) => <AccessGrant>[]),
         _repo.getDoctors().catchError((_) => <DoctorProfile>[]),
         _repo.getHospitals().catchError((_) => <HospitalInfo>[]),
@@ -147,18 +152,26 @@ class PatientNotifier extends Notifier<PatientState> {
       ]).timeout(const Duration(seconds: 12));
       List<PrescribedMedication> prescriptions = [];
       try {
-        prescriptions = (await _repo.getPrescriptions(patientId).timeout(const Duration(seconds: 6)))
-            .map((e) => ResponseMapper.prescriptionFromBackend(e))
-            .toList();
+        prescriptions =
+            (await _repo
+                    .getPrescriptions(patientId)
+                    .timeout(const Duration(seconds: 6)))
+                .map((e) => ResponseMapper.prescriptionFromBackend(e))
+                .toList();
       } catch (_) {}
       List<BookletEntry> consultations = [];
       try {
-        final records = (await _repo.getPatientMedicalRecords(patientId).timeout(const Duration(seconds: 6)))
-            .map((e) => ResponseMapper.consultationToBooklet(e))
-            .toList();
+        final records =
+            (await _repo
+                    .getPatientMedicalRecords(patientId)
+                    .timeout(const Duration(seconds: 6)))
+                .map((e) => ResponseMapper.consultationToBooklet(e))
+                .toList();
         consultations = records;
       } catch (_) {}
-      Patient? resolvedPatient = results[0] is Patient ? results[0] as Patient? : null;
+      Patient? resolvedPatient = results[0] is Patient
+          ? results[0] as Patient?
+          : null;
       // The backend auto-creates an empty "stub" patient when none exists, so a
       // user who reached home without completing onboarding (sign-in, or an
       // aborted registration) gets a blank profile. Materialize the real profile
@@ -174,29 +187,44 @@ class PatientNotifier extends Notifier<PatientState> {
       // (or local cache). Never overwrite the active id with a fabricated one.
       if (resolvedPatient != null && resolvedPatient.id.isNotEmpty) {
         try {
-          await ref.read(localDatabaseProvider).setActivePatientId(resolvedPatient.id);
+          await ref
+              .read(localDatabaseProvider)
+              .setActivePatientId(resolvedPatient.id);
         } catch (_) {}
       }
       state = state.copyWith(
         patientId: resolvedPatientId,
         patient: resolvedPatient,
         card: results[1] is CardModel ? results[1] as CardModel? : null,
-        bookletEntries: results[2] is List ? results[2] as List<BookletEntry> : [],
+        bookletEntries: results[2] is List
+            ? results[2] as List<BookletEntry>
+            : [],
         auditLogs: results[3] is List ? results[3] as List<AuditEvent> : [],
-        notifications: results[4] is List ? results[4] as List<NotificationModel> : [],
-        healthJourney: results[5] is List ? results[5] as List<HealthJourneyEntry> : [],
+        notifications: results[4] is List
+            ? results[4] as List<NotificationModel>
+            : [],
+        healthJourney: results[5] is List
+            ? results[5] as List<HealthJourneyEntry>
+            : [],
         accessGrants: results[6] is List ? results[6] as List<AccessGrant> : [],
         doctors: results[7] is List ? results[7] as List<DoctorProfile> : [],
         hospitals: results[8] is List ? results[8] as List<HospitalInfo> : [],
         chats: results[9] is List ? results[9] as List<ChatConversation> : [],
-        appointments: results[10] is List ? results[10] as List<Appointment> : [],
+        appointments: results[10] is List
+            ? results[10] as List<Appointment>
+            : [],
         prescriptions: prescriptions,
         consultations: consultations,
         loading: false,
-        error: resolvedPatient == null ? 'Impossible de charger le profil' : null,
+        error: resolvedPatient == null
+            ? 'Impossible de charger le profil'
+            : null,
       );
     } catch (_) {
-      state = state.copyWith(loading: false, error: 'Impossible de charger votre profil. Vérifiez votre connexion.');
+      state = state.copyWith(
+        loading: false,
+        error: 'Impossible de charger votre profil. Vérifiez votre connexion.',
+      );
     }
   }
 
@@ -204,23 +232,31 @@ class PatientNotifier extends Notifier<PatientState> {
   /// (no name), onboards using the auth session's known first/last name, then
   /// reloads. Falls back to showing the auth name locally if the network call
   /// fails, so the UI is never blank.
-  Future<Patient?> _materializeProfile(Patient? current, String patientId) async {
+  Future<Patient?> _materializeProfile(
+    Patient? current,
+    String patientId,
+  ) async {
     final authName = (ref.read(authProvider).patient?.name ?? '').trim();
     if (authName.isEmpty) return current;
     final parts = authName.split(' ');
     final firstName = parts.first;
     final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
     try {
-      await ref.read(apiClientProvider).post(ApiEndpoints.patientOnboard, data: {
-        'firstName': firstName,
-        'lastName': lastName,
-      });
-      final reloaded = await _repo.getPatientProfile(patientId).catchError((_) => null);
+      await ref
+          .read(apiClientProvider)
+          .post(
+            ApiEndpoints.patientOnboard,
+            data: {'firstName': firstName, 'lastName': lastName},
+          );
+      final reloaded = await _repo
+          .getPatientProfile(patientId)
+          .catchError((_) => null);
       if (reloaded != null && reloaded.name.isNotEmpty) return reloaded;
     } catch (_) {
       // best-effort: continue to the local fallback below
     }
-    final base = current ??
+    final base =
+        current ??
         Patient(
           id: patientId,
           name: '',
@@ -235,7 +271,11 @@ class PatientNotifier extends Notifier<PatientState> {
           emergencyContactName: '',
           emergencyContactRelationship: '',
           emergencyContactPhone: '',
-          emergencyContact: const EmergencyContact(name: '', relationship: '', phone: ''),
+          emergencyContact: const EmergencyContact(
+            name: '',
+            relationship: '',
+            phone: '',
+          ),
         );
     return base.copyWith(name: authName);
   }
@@ -243,9 +283,7 @@ class PatientNotifier extends Notifier<PatientState> {
   Future<List<Appointment>> _loadAppointments(String patientId) async {
     try {
       final list = await _repo.getAppointments(patientId);
-      return list
-          .map((e) => ResponseMapper.appointmentFromBackend(e))
-          .toList();
+      return list.map((e) => ResponseMapper.appointmentFromBackend(e)).toList();
     } catch (_) {
       return [];
     }
@@ -284,7 +322,10 @@ class PatientNotifier extends Notifier<PatientState> {
         await loadPatientData(patient.id);
       }
     } catch (e) {
-      state = state.copyWith(loading: false, error: 'Failed to register patient');
+      state = state.copyWith(
+        loading: false,
+        error: 'Failed to register patient',
+      );
     }
   }
 
@@ -332,14 +373,21 @@ class PatientNotifier extends Notifier<PatientState> {
     }
   }
 
-  Future<void> rescheduleAppointment(String appointmentId, {
+  Future<void> rescheduleAppointment(
+    String appointmentId, {
     required String date,
     required String startTime,
     required String endTime,
     String? reason,
   }) async {
     try {
-      await _repo.rescheduleAppointment(appointmentId, date: date, startTime: startTime, endTime: endTime, reason: reason);
+      await _repo.rescheduleAppointment(
+        appointmentId,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        reason: reason,
+      );
       if (state.patientId != null) {
         await loadPatientData(state.patientId!);
       }
@@ -366,8 +414,12 @@ class PatientNotifier extends Notifier<PatientState> {
     state = state.copyWith(
       notifications: state.notifications.map((n) {
         return NotificationModel(
-          id: n.id, type: n.type, title: n.title,
-          message: n.message, time: n.time, read: true,
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          time: n.time,
+          read: true,
         );
       }).toList(),
     );
@@ -381,8 +433,12 @@ class PatientNotifier extends Notifier<PatientState> {
       notifications: state.notifications.map((n) {
         if (n.id == id) {
           return NotificationModel(
-            id: n.id, type: n.type, title: n.title,
-            message: n.message, time: n.time, read: true,
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            time: n.time,
+            read: true,
           );
         }
         return n;
@@ -398,10 +454,15 @@ class PatientNotifier extends Notifier<PatientState> {
       accessGrants: state.accessGrants.map((g) {
         if (g.id == grantId) {
           return AccessGrant(
-            id: g.id, patientId: g.patientId,
-            institutionId: g.institutionId, institutionName: g.institutionName,
-            mode: g.mode, scope: g.scope, grantedAt: g.grantedAt,
-            expiresAt: g.expiresAt, status: 'REVOKED',
+            id: g.id,
+            patientId: g.patientId,
+            institutionId: g.institutionId,
+            institutionName: g.institutionName,
+            mode: g.mode,
+            scope: g.scope,
+            grantedAt: g.grantedAt,
+            expiresAt: g.expiresAt,
+            status: 'REVOKED',
           );
         }
         return g;
@@ -417,10 +478,15 @@ class PatientNotifier extends Notifier<PatientState> {
       accessGrants: state.accessGrants.map((g) {
         if (g.id == grantId) {
           return AccessGrant(
-            id: g.id, patientId: g.patientId,
-            institutionId: g.institutionId, institutionName: g.institutionName,
-            mode: g.mode, scope: g.scope, grantedAt: g.grantedAt,
-            expiresAt: g.expiresAt, status: 'ACTIVE',
+            id: g.id,
+            patientId: g.patientId,
+            institutionId: g.institutionId,
+            institutionName: g.institutionName,
+            mode: g.mode,
+            scope: g.scope,
+            grantedAt: g.grantedAt,
+            expiresAt: g.expiresAt,
+            status: 'ACTIVE',
           );
         }
         return g;
@@ -467,6 +533,72 @@ class PatientNotifier extends Notifier<PatientState> {
     }
   }
 
+  Future<void> updateProfile({
+    required String firstName,
+    required String lastName,
+    required DateTime dateOfBirth,
+    required String gender,
+    required String city,
+    required String address,
+    required String bloodType,
+    required List<String> allergies,
+    required List<String> chronicConditions,
+    required List<String> currentMeds,
+    required String emergencyContactName,
+    required String emergencyContactRelationship,
+    required String emergencyContactPhone,
+  }) async {
+    final patient = state.patient;
+    if (patient == null) throw StateError('Profil patient introuvable');
+
+    await ref
+        .read(apiClientProvider)
+        .put(
+          ApiEndpoints.patientProfile,
+          data: {
+            'firstName': firstName.trim(),
+            'lastName': lastName.trim(),
+            'dateOfBirth': dateOfBirth.toIso8601String(),
+            'gender': gender.trim(),
+            'city': city.trim(),
+            'address': address.trim(),
+            'bloodType': bloodType.trim(),
+            'allergies': allergies,
+            'chronicConditions': chronicConditions,
+            'currentMeds': currentMeds,
+            'emergencyContactName': emergencyContactName.trim(),
+            'emergencyContactRelationship': emergencyContactRelationship.trim(),
+            'emergencyContactPhone': emergencyContactPhone.trim(),
+          },
+        );
+
+    final fullName = [
+      firstName.trim(),
+      lastName.trim(),
+    ].where((part) => part.isNotEmpty).join(' ');
+    state = state.copyWith(
+      patient: patient.copyWith(
+        name: fullName,
+        dateOfBirth: dateOfBirth,
+        gender: gender.trim(),
+        city: city.trim(),
+        address: address.trim(),
+        bloodType: bloodType.trim(),
+        allergies: allergies,
+        chronicConditions: chronicConditions,
+        currentMeds: currentMeds,
+        emergencyContactName: emergencyContactName.trim(),
+        emergencyContactRelationship: emergencyContactRelationship.trim(),
+        emergencyContactPhone: emergencyContactPhone.trim(),
+        emergencyContact: EmergencyContact(
+          name: emergencyContactName.trim(),
+          relationship: emergencyContactRelationship.trim(),
+          phone: emergencyContactPhone.trim(),
+        ),
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>?> triggerSos({String? notes}) async {
     try {
       return await _repo.triggerSos(
@@ -488,7 +620,9 @@ class PatientNotifier extends Notifier<PatientState> {
     try {
       final chat = await _repo.getChatById(chatId);
       if (chat != null) {
-        final chats = state.chats.map((c) => c.id == chatId ? chat : c).toList();
+        final chats = state.chats
+            .map((c) => c.id == chatId ? chat : c)
+            .toList();
         state = state.copyWith(chats: chats);
       }
       return chat;
@@ -499,12 +633,28 @@ class PatientNotifier extends Notifier<PatientState> {
 
   Future<ChatConversation> startChatWithDoctor(String doctorId) async {
     final chat = await _repo.getOrCreateChatWithDoctor(doctorId);
-    state = state.copyWith(chats: [chat, ...state.chats.where((c) => c.id != chat.id)]);
+    state = state.copyWith(
+      chats: [chat, ...state.chats.where((c) => c.id != chat.id)],
+    );
     return chat;
   }
 
-  Future<void> sendChatMessage(String chatId, String content, {String? fileUrl, String? fileName, int? fileSize, String? mimeType}) async {
-    final result = await _repo.sendMessage(chatId: chatId, content: content, fileUrl: fileUrl, fileName: fileName, fileSize: fileSize, mimeType: mimeType);
+  Future<void> sendChatMessage(
+    String chatId,
+    String content, {
+    String? fileUrl,
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
+  }) async {
+    final result = await _repo.sendMessage(
+      chatId: chatId,
+      content: content,
+      fileUrl: fileUrl,
+      fileName: fileName,
+      fileSize: fileSize,
+      mimeType: mimeType,
+    );
     final sent = ResponseMapper.messageFromBackend(result);
     final chats = state.chats.map((c) {
       if (c.id == chatId) {
@@ -552,7 +702,9 @@ class PatientNotifier extends Notifier<PatientState> {
       await _repo.markChatAsRead(chatId);
     } catch (_) {}
     state = state.copyWith(
-      chats: state.chats.map((c) => c.id == chatId ? c.copyWith(unread: 0) : c).toList(),
+      chats: state.chats
+          .map((c) => c.id == chatId ? c.copyWith(unread: 0) : c)
+          .toList(),
     );
   }
 

@@ -65,7 +65,146 @@ export class PatientService {
   async updateProfile(userId: string, data: Record<string, unknown>) {
     const patient = await this.repository.findByUserId(userId);
     if (!patient) throw new NotFoundError('Patient profile not found');
-    return this.repository.update(patient.id, data);
+    const editableFields = [
+      'firstName', 'lastName', 'dateOfBirth', 'gender', 'bloodType', 'heightCm', 'weightKg',
+      'allergies', 'chronicDiseases', 'chronicConditions', 'currentMeds',
+      'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelationship',
+      'address', 'city', 'region', 'profilePhotoUrl', 'insuranceProvider', 'insuranceNumber',
+    ];
+    const payload: Record<string, unknown> = {};
+    for (const field of editableFields) {
+      if (field in data) payload[field] = data[field];
+    }
+
+    for (const field of ['firstName', 'lastName'] as const) {
+      if (field in payload) {
+        if (typeof payload[field] !== 'string' || !payload[field].trim()) {
+          throw new BadRequestError(`${field} is required`);
+        }
+        payload[field] = payload[field].trim();
+      }
+    }
+    if (typeof payload.dateOfBirth === 'string') {
+      const dateOfBirth = new Date(payload.dateOfBirth);
+      if (Number.isNaN(dateOfBirth.getTime()) || dateOfBirth > new Date()) {
+        throw new BadRequestError('Date of birth is invalid');
+      }
+      payload.dateOfBirth = dateOfBirth;
+    }
+    for (const field of ['allergies', 'chronicDiseases', 'chronicConditions', 'currentMeds'] as const) {
+      if (field in payload && (!Array.isArray(payload[field]) || !(payload[field] as unknown[]).every((item) => typeof item === 'string'))) {
+        throw new BadRequestError(`${field} must be a list of text values`);
+      }
+    }
+
+    await this.repository.update(patient.id, payload);
+    return this.repository.findByUserId(userId);
+  }
+
+  async deleteAccount(userId: string) {
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, phone: true },
+      });
+      if (!user) throw new NotFoundError('Account not found');
+
+      const patient = await tx.patient.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          medicalCard: { select: { id: true } },
+          appointments: { select: { id: true } },
+          consultations: { select: { id: true } },
+          labResults: { select: { id: true } },
+          imagingResults: { select: { id: true } },
+          prescriptions: { select: { id: true } },
+          medicalBooklets: { select: { id: true } },
+          emergencyInfos: { select: { id: true } },
+          journeyEntries: { select: { id: true } },
+          emergencySessions: { select: { id: true } },
+          chatParticipants: { select: { chatId: true } },
+        },
+      });
+
+      const patientId = patient?.id;
+      const chatIds = [...new Set(patient?.chatParticipants.map((participant) => participant.chatId) ?? [])];
+      const appointmentIds = patient?.appointments.map((appointment) => appointment.id) ?? [];
+      const relatedIds = [
+        patientId,
+        patient?.medicalCard?.id,
+        ...appointmentIds,
+        ...(patient?.consultations.map((row) => row.id) ?? []),
+        ...(patient?.labResults.map((row) => row.id) ?? []),
+        ...(patient?.imagingResults.map((row) => row.id) ?? []),
+        ...(patient?.prescriptions.map((row) => row.id) ?? []),
+        ...(patient?.medicalBooklets.map((row) => row.id) ?? []),
+        ...(patient?.emergencyInfos.map((row) => row.id) ?? []),
+        ...(patient?.journeyEntries.map((row) => row.id) ?? []),
+        ...(patient?.emergencySessions.map((row) => row.id) ?? []),
+        ...chatIds,
+      ].filter((id): id is string => Boolean(id));
+
+      if (chatIds.length) {
+        await tx.chatMessage.deleteMany({ where: { chatId: { in: chatIds } } });
+        await tx.chatParticipant.deleteMany({ where: { chatId: { in: chatIds } } });
+        await tx.chat.deleteMany({ where: { id: { in: chatIds } } });
+      }
+      await tx.chatMessage.deleteMany({ where: { senderId: userId } });
+      if (patientId) await tx.chatParticipant.deleteMany({ where: { patientId } });
+
+      const accessConditions = [
+        ...(patientId ? [{ patientId }] : []),
+        { grantedById: userId },
+        { grantedToId: userId },
+        { revokedById: userId },
+      ];
+      await tx.accessManagement.deleteMany({ where: { OR: accessConditions } });
+
+      if (patientId) {
+        await tx.doctorReview.deleteMany({ where: { patientId } });
+        await tx.emergencySession.deleteMany({ where: { patientId } });
+        if (patient?.medicalCard) {
+          await tx.visit.deleteMany({ where: { medicalCardId: patient.medicalCard.id } });
+        }
+        if (appointmentIds.length) {
+          await tx.visit.deleteMany({ where: { appointmentId: { in: appointmentIds } } });
+        }
+        await tx.prescription.deleteMany({ where: { patientId } });
+        await tx.consultation.deleteMany({ where: { patientId } });
+        await tx.labResult.deleteMany({ where: { patientId } });
+        await tx.imagingResult.deleteMany({ where: { patientId } });
+        await tx.appointment.deleteMany({ where: { patientId } });
+        await tx.medicalBooklet.deleteMany({ where: { patientId } });
+        await tx.emergencyInfo.deleteMany({ where: { patientId } });
+        await tx.journeyEntry.deleteMany({ where: { patientId } });
+        if (patient?.medicalCard) {
+          await tx.medicalCard.delete({ where: { id: patient.medicalCard.id } });
+        }
+        await tx.patient.delete({ where: { id: patientId } });
+      }
+
+      await tx.paymentTransaction.deleteMany({
+        where: {
+          OR: [
+            { userId },
+            ...(appointmentIds.length ? [{ appointmentId: { in: appointmentIds } }] : []),
+          ],
+        },
+      });
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.device.deleteMany({ where: { userId } });
+      await tx.phoneOtp.deleteMany({ where: { phone: user.phone } });
+      await tx.auditLog.deleteMany({
+        where: {
+          OR: [
+            { userId },
+            ...(relatedIds.length ? [{ entityId: { in: relatedIds } }] : []),
+          ],
+        },
+      });
+      await tx.user.delete({ where: { id: userId } });
+    }, { maxWait: 10_000, timeout: 30_000 });
   }
 
   async updateByDoctor(patientId: string, data: Record<string, unknown>, doctorUserId: string) {

@@ -1,12 +1,22 @@
 import { Response, NextFunction } from 'express';
 import { PatientService } from './patient.service';
-import { AuthenticatedRequest } from '@shared/types';
+import { AuthenticatedRequest, UserRole } from '@shared/types';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@shared/utils/errors';
 import prisma from '@shared/database/prisma';
 
 const patientService = new PatientService();
 
 export class PatientController {
+  async deleteAccount(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      if (req.user!.role !== UserRole.PATIENT) {
+        throw new ForbiddenError('Seul le titulaire patient peut supprimer son compte');
+      }
+      await patientService.deleteAccount(req.user!.userId);
+      res.json({ success: true, message: 'Le compte et les données associées ont été supprimés.' });
+    } catch (error) { next(error); }
+  }
+
   async recordVisit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       if (req.user!.role !== 'doctor') throw new ForbiddenError('Seul un médecin peut enregistrer une visite');
