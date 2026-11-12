@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../domain/models/chat_conversation.dart';
 import '../../../domain/models/chat_message.dart';
 import '../../../core/data/repositories/repository_providers.dart';
+import '../../../core/network/doctor_api_endpoints.dart';
+import '../../../core/services/socket_service.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/error_mapper.dart';
 import '../../../shared/widgets/page_header.dart';
@@ -36,15 +41,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadingMessages = false;
   String? _conversationsError;
   String? _messagesError;
+  StreamSubscription<Map<String, dynamic>>? _messageSubscription;
+  String? _joinedChatId;
+  late final SocketService _socket;
 
   @override
   void initState() {
     super.initState();
+    _socket = ref.read(socketServiceProvider);
+    _socket.connect().then((_) {
+      final selected = _selectedConversation;
+      if (selected != null) _socket.joinChat(selected.id);
+    });
+    _messageSubscription = _socket.onMessage.listen((data) {
+      if (!mounted || data['chatId']?.toString() != _joinedChatId) return;
+      final id = _joinedChatId;
+      if (id != null) {
+        _loadMessages(id);
+        _loadConversations();
+      }
+    });
     _loadConversations();
   }
 
   @override
   void dispose() {
+    _messageSubscription?.cancel();
+    if (_joinedChatId != null) _socket.leaveChat(_joinedChatId!);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -78,10 +101,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _selectConversation(ChatConversation conv) {
+    if (_joinedChatId != null) _socket.leaveChat(_joinedChatId!);
     setState(() => _selectedConversation = conv);
+    _joinedChatId = conv.id;
+    _socket.joinChat(conv.id);
     _loadMessages(conv.id);
     if (conv.unread > 0) {
       ref.read(chatRepositoryProvider).markChatRead(conv.id);
+    }
+  }
+
+  Future<void> _pickAttachment() async {
+    final conv = _selectedConversation;
+    if (conv == null) return;
+    final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'doc', 'docx', 'txt', 'csv']);
+    final file = picked?.files.single;
+    final path = file?.path;
+    if (file == null || path == null) return;
+    try {
+      final url = await ref.read(remoteDoctorRepoProvider).uploadFile(path);
+      if (url == null || url.isEmpty) throw Exception('Le fichier n’a pas pu être téléversé.');
+      final ext = file.extension?.toLowerCase() ?? '';
+      final mime = const {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','webp':'image/webp','gif':'image/gif','pdf':'application/pdf','doc':'application/msword','docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','txt':'text/plain','csv':'text/csv'}[ext] ?? 'application/octet-stream';
+      await ref.read(chatRepositoryProvider).sendMessage(conv.id, '', type: mime.startsWith('image/') ? 'image' : 'document', metadata: {'attachmentUrl': url, 'fileName': file.name, 'fileSize': file.size, 'mimeType': mime});
+      await _loadMessages(conv.id);
+      await _loadConversations();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Échec de l’envoi du fichier : ${ErrorMapper.fromException(e).message}')));
     }
   }
 
@@ -276,6 +322,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             child: Row(
               children: [
+                IconButton(onPressed: _pickAttachment, icon: const Icon(LucideIcons.paperclip), tooltip: 'Joindre une image ou un document'),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -404,13 +451,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            msg.text,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isMe ? AppColors.white : AppColors.foreground,
-                            ),
-                          ),
+                          if (msg.metadata?.fileName.isNotEmpty == true)
+                            _DoctorAttachment(message: msg, isMe: isMe)
+                          else if (msg.text.isNotEmpty)
+                            Text(msg.text, style: TextStyle(fontSize: 14, color: isMe ? AppColors.white : AppColors.foreground)),
                           const SizedBox(height: 4),
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -551,4 +595,40 @@ class _ConversationTile extends ConsumerWidget {
     if (diff.inDays < 7) return '${diff.inDays}j';
     return DateFormat('dd/MM').format(date);
   }
+}
+
+class _DoctorAttachment extends StatelessWidget {
+  final ChatMessage message;
+  final bool isMe;
+  const _DoctorAttachment({required this.message, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    final metadata = message.metadata?.toJson() ?? <String, dynamic>{};
+    final url = metadata['attachmentUrl']?.toString() ?? '';
+    final name = metadata['fileName']?.toString() ?? 'Pièce jointe';
+    final image = message.type == 'image' || (metadata['mimeType']?.toString().startsWith('image/') ?? false);
+    final uri = url.startsWith('http') ? Uri.parse(url) : Uri.parse(DoctorApiEndpoints.baseUrl).resolve('/${url.replaceFirst(RegExp(r'^/'), '')}');
+    if (image) {
+      return GestureDetector(
+        onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(uri.toString(), width: 220, height: 160, fit: BoxFit.cover, errorBuilder: (_, _, _) => _document(uri, name)),
+        ),
+      );
+    }
+    return _document(uri, name);
+  }
+
+  Widget _document(Uri uri, String name) => InkWell(
+    onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(LucideIcons.fileText, color: isMe ? AppColors.white : AppColors.primary),
+      const SizedBox(width: 8),
+      Flexible(child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: isMe ? AppColors.white : AppColors.foreground, decoration: TextDecoration.underline))),
+      const SizedBox(width: 4),
+      Icon(LucideIcons.download, size: 16, color: isMe ? Colors.white70 : AppColors.mutedForeground),
+    ]),
+  );
 }

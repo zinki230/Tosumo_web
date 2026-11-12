@@ -497,8 +497,14 @@ class PatientNotifier extends Notifier<PatientState> {
     }
   }
 
-  Future<void> sendChatMessage(String chatId, String content) async {
-    final result = await _repo.sendMessage(chatId: chatId, content: content);
+  Future<ChatConversation> startChatWithDoctor(String doctorId) async {
+    final chat = await _repo.getOrCreateChatWithDoctor(doctorId);
+    state = state.copyWith(chats: [chat, ...state.chats.where((c) => c.id != chat.id)]);
+    return chat;
+  }
+
+  Future<void> sendChatMessage(String chatId, String content, {String? fileUrl, String? fileName, int? fileSize, String? mimeType}) async {
+    final result = await _repo.sendMessage(chatId: chatId, content: content, fileUrl: fileUrl, fileName: fileName, fileSize: fileSize, mimeType: mimeType);
     final sent = ResponseMapper.messageFromBackend(result);
     final chats = state.chats.map((c) {
       if (c.id == chatId) {

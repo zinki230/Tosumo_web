@@ -592,24 +592,44 @@ class RepositoryCoordinator
     String? type,
     Map<String, dynamic>? metadata,
   }) async {
+    if (_online) {
+      try {
+        final sent = await _remote
+            .sendMessage(conversationId, text, type: type, metadata: metadata)
+            .timeout(const Duration(seconds: 12));
+        await _local.saveChatMessage(conversationId, sent);
+        return sent;
+      } catch (_) {
+        setOnline(false);
+      }
+    }
     final result = await _local.sendMessage(
       conversationId,
       text,
       type: type,
       metadata: metadata,
     );
-    _enqueueSync('/api/v1/chats/$conversationId/messages', {
-      'text': text,
-      'type': type ?? 'text',
-      'metadata': metadata,
+    _enqueueSync('/api/v1/chat/$conversationId/messages', {
+      'content': text,
+      'messageType': type ?? 'text',
+      ...?metadata,
     });
     return result;
   }
 
   @override
   Future<void> markChatRead(String id) async {
+    if (_online) {
+      try {
+        await _remote.markChatRead(id).timeout(const Duration(seconds: 12));
+        await _local.markChatRead(id);
+        return;
+      } catch (_) {
+        setOnline(false);
+      }
+    }
     await _local.markChatRead(id);
-    _enqueueSync('/api/v1/chat/$id/read', {}, type: 'PATCH');
+    _enqueueSync('/api/v1/chat/$id/read', {}, type: 'PUT');
   }
 
   @override
@@ -921,12 +941,13 @@ class RepositoryCoordinator
     } else if (endpoint.startsWith('/api/v1/medical-records/imaging-results')) {
       final request = ImagingRequest.fromJson(body);
       await _remote.createImagingRequest(request);
-    } else if (endpoint.startsWith('/api/v1/chats')) {
+    } else if (endpoint.startsWith('/api/v1/chat/') &&
+        endpoint.endsWith('/messages')) {
       await _remote.sendMessage(
         endpoint.split('/').elementAt(4),
-        body['text'] as String,
-        type: body['type'] as String?,
-        metadata: body['metadata'] as Map<String, dynamic>?,
+        body['content'] as String? ?? '',
+        type: body['messageType'] as String?,
+        metadata: body,
       );
     } else if (endpoint.startsWith('/api/v1/emergency')) {
       await _remote.startEmergencySession(
@@ -944,6 +965,9 @@ class RepositoryCoordinator
     } else if (endpoint.startsWith('/api/v1/consultations')) {
       final consultation = Consultation.fromJson(body);
       await _remote.updateDraft(endpoint.split('/').last, consultation);
+    } else if (endpoint.startsWith('/api/v1/chat/') &&
+        endpoint.endsWith('/read')) {
+      await _remote.markChatRead(endpoint.split('/').elementAt(4));
     }
   }
 

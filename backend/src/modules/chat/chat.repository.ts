@@ -12,6 +12,7 @@ export class ChatRepository {
     if (patient) {
       where.participants = { some: { patientId: patient.id } };
     }
+    if (!doctor && !patient) return [];
 
     return prisma.chat.findMany({
       where,
@@ -65,6 +66,7 @@ export class ChatRepository {
     }
     return prisma.chatMessage.findMany({
       where,
+      include: { sender: true },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -77,6 +79,7 @@ export class ChatRepository {
     content?: string;
     messageType: string;
     fileUrl?: string;
+    fileName?: string;
     fileSize?: number;
     mimeType?: string;
     replyToId?: string;
@@ -102,7 +105,7 @@ export class ChatRepository {
     }
 
     return prisma.chatMessage.updateMany({
-      where: { chatId, isRead: false },
+      where: { chatId, isRead: false, senderId: { not: userId } },
       data: { isRead: true, readAt: new Date() },
     });
   }
@@ -111,14 +114,16 @@ export class ChatRepository {
     const doctor = await prisma.doctor.findUnique({ where: { userId } });
     const patient = await prisma.patient.findUnique({ where: { userId } });
 
-    const where: Record<string, unknown> = { deletedAt: null };
-    if (doctor) {
-      where.participants = { some: { doctorId: doctor.id, lastReadAt: null } };
-    }
-    if (patient) {
-      where.participants = { some: { patientId: patient.id, lastReadAt: null } };
-    }
-
-    return prisma.chatMessage.count({ where });
+    return prisma.chatMessage.count({
+      where: {
+        chat: { participants: { some: { OR: [
+          ...(doctor ? [{ doctorId: doctor.id }] : []),
+          ...(patient ? [{ patientId: patient.id }] : []),
+        ] } } },
+        senderId: { not: userId },
+        isRead: false,
+        deletedAt: null,
+      },
+    });
   }
 }

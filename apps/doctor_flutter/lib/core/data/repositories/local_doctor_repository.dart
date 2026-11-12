@@ -550,6 +550,23 @@ class LocalDoctorRepository implements
     return messages;
   }
 
+  Future<void> saveChatMessage(String conversationId, ChatMessage message) async {
+    final conv = await _db.getById(_boxChats, conversationId, ChatConversation.fromJson);
+    if (conv == null || conv.messages.any((m) => m.id == message.id)) return;
+    final updated = ChatConversation(
+      id: conv.id,
+      participantName: conv.participantName,
+      participantRole: conv.participantRole,
+      participantInitials: conv.participantInitials,
+      lastMessage: message.text.isNotEmpty ? message.text : (message.metadata?.fileName ?? 'Pièce jointe'),
+      lastMessageDate: message.timestamp,
+      unread: 0,
+      online: conv.online,
+      messages: [...conv.messages, message],
+    );
+    await _db.putById(_boxChats, conversationId, updated, (c) => c.toJson());
+  }
+
   @override
   Future<ChatMessage> sendMessage(String conversationId, String text, {String? type, Map<String, dynamic>? metadata}) async {
     final conv = await _db.getById(_boxChats, conversationId, ChatConversation.fromJson);

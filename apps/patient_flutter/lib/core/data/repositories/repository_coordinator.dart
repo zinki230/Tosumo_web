@@ -170,6 +170,13 @@ class RepositoryCoordinator implements PatientRepository {
   }
 
   @override
+  Future<ChatConversation> getOrCreateChatWithDoctor(String doctorId) async {
+    final chat = await _remote.getOrCreateChatWithDoctor(doctorId);
+    await _local.saveChat(chat);
+    return chat;
+  }
+
+  @override
   Future<List<NotificationModel>> getNotifications(String patientId) async {
     return _fetchWithRemoteCache(
       remote: () => _remote.getNotifications(patientId),
@@ -373,15 +380,19 @@ class RepositoryCoordinator implements PatientRepository {
     required String chatId,
     required String content,
     String? messageType,
+    String? fileUrl,
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
   }) async {
     if (_online) {
       try {
-        return await _remote.sendMessage(chatId: chatId, content: content, messageType: messageType);
+        return await _remote.sendMessage(chatId: chatId, content: content, messageType: messageType, fileUrl: fileUrl, fileName: fileName, fileSize: fileSize, mimeType: mimeType);
       } catch (_) {
         setOnline(false);
       }
     }
-    return _local.sendMessage(chatId: chatId, content: content, messageType: messageType);
+    return _local.sendMessage(chatId: chatId, content: content, messageType: messageType, fileUrl: fileUrl, fileName: fileName, fileSize: fileSize, mimeType: mimeType);
   }
 
   @override

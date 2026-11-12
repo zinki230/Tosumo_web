@@ -7,6 +7,21 @@ import { NotificationService } from '@modules/notifications/notification.service
 const APPOINTMENT_STATUS = ['pending', 'approved', 'confirmed', 'rescheduled', 'cancelled', 'completed', 'no_show'] as const;
 type AppointmentStatus = typeof APPOINTMENT_STATUS[number];
 
+const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Africa/Douala';
+const localDateKey = (date: Date) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: APP_TIME_ZONE,
+  year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(date);
+const localMinutes = (date: Date) => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: APP_TIME_ZONE,
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date);
+  const hour = Number(parts.find(p => p.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find(p => p.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+};
+
 export class AppointmentService {
   private repository = new AppointmentRepository();
   private notifications = new NotificationService();
@@ -16,7 +31,8 @@ export class AppointmentService {
     if (!doctor) throw new NotFoundError('Doctor not found');
     if (!doctor.isAvailable) throw new BadRequestError('Doctor is currently unavailable');
 
-    const dayOfWeek = date.getDay();
+    // Mobile uses ISO weekdays (Monday=1 … Sunday=7); JavaScript uses Sunday=0.
+    const dayOfWeek = date.getUTCDay() || 7;
     const availabilities = await this.repository.getDoctorAvailability(doctorId);
     const daySlot = availabilities.find(a => a.dayOfWeek === dayOfWeek && a.isAvailable);
     if (!daySlot) {
@@ -24,6 +40,14 @@ export class AppointmentService {
     }
     if (startTime < daySlot.startTime || endTime > daySlot.endTime) {
       throw new BadRequestError(`Doctor is available between ${daySlot.startTime} and ${daySlot.endTime} on this day`);
+    }
+    const requestedDuration = this.toMinutes(endTime) - this.toMinutes(startTime);
+    if (requestedDuration !== daySlot.slotDuration) {
+      throw new BadRequestError(`Appointments must use ${daySlot.slotDuration}-minute slots`);
+    }
+    const now = new Date();
+    if (date.toISOString().slice(0, 10) === localDateKey(now) && this.toMinutes(startTime) <= localMinutes(now)) {
+      throw new BadRequestError('The selected appointment time has already passed');
     }
 
     const workingHours = await this.repository.getDoctorWorkingHours(doctorId, date);
@@ -275,7 +299,7 @@ export class AppointmentService {
     if (!doctor) throw new NotFoundError('Doctor not found');
     if (!doctor.isAvailable) return [];
 
-    const dayOfWeek = date.getDay();
+    const dayOfWeek = date.getUTCDay() || 7;
     const availabilities = await this.repository.getDoctorAvailability(doctorId);
     const daySlot = availabilities.find(a => a.dayOfWeek === dayOfWeek && a.isAvailable);
     if (!daySlot) return [];
@@ -294,9 +318,14 @@ export class AppointmentService {
 
     const booked = await this.repository.findDoctorSlotsOnDate(doctorId, date);
     const slots: { startTime: string; endTime: string }[] = [];
-    for (let m = this.toMinutes(windowStart); m + 30 <= this.toMinutes(windowEnd); m += 30) {
+    const duration = Math.max(5, daySlot.slotDuration || 30);
+    const now = new Date();
+    const isToday = localDateKey(now) === date.toISOString().slice(0, 10);
+    const currentMinutes = localMinutes(now);
+    for (let m = this.toMinutes(windowStart); m + duration <= this.toMinutes(windowEnd); m += duration) {
       const startTime = this.toHHMM(m);
-      const endTime = this.toHHMM(m + 30);
+      const endTime = this.toHHMM(m + duration);
+      if (isToday && m <= currentMinutes) continue;
       const conflict = booked.some(b => startTime < b.endTime && endTime > b.startTime);
       if (!conflict) slots.push({ startTime, endTime });
     }

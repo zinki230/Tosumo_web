@@ -2,8 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/data/response_mapper.dart';
+import '../../../core/data/repositories/repository_providers.dart';
 import '../../../core/providers/patient_provider.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/socket_provider.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -38,24 +42,19 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _initThread() async {
     final socket = _socket ?? ref.read(socketServiceProvider);
     _socket = socket;
-    if (socket == null) return;
-    socket.joinChat(widget.chatId);
-    ref.read(patientProvider.notifier).markChatAsRead(widget.chatId);
-
-    _messageSub = socket.onMessage.listen((data) {
-      final msg = ResponseMapper.messageFromBackend(data);
-      if (msg.id.isNotEmpty) {
-        _appendMessage(msg);
-      }
-    });
-
-    _typingSub = socket.onTyping.listen((data) {
-      final chatId = data['chatId']?.toString() ?? '';
-      if (chatId != widget.chatId) return;
-      final typing = data.keys.any((k) => k == 'typing' && data['typing'] == true) ||
-          data['type'] == 'typing:start';
-      setState(() => _isTyping = typing);
-    });
+    if (socket != null) {
+      socket.joinChat(widget.chatId);
+      _messageSub = socket.onMessage.listen((data) {
+        final msg = ResponseMapper.messageFromBackend(data);
+        if (msg.id.isNotEmpty) _appendMessage(msg);
+      });
+      _typingSub = socket.onTyping.listen((data) {
+        final chatId = data['chatId']?.toString() ?? '';
+        if (chatId != widget.chatId) return;
+        setState(() => _isTyping = data['typing'] == true || data['type'] == 'typing:start');
+      });
+    }
+    await ref.read(patientProvider.notifier).markChatAsRead(widget.chatId);
 
     await ref.read(patientProvider.notifier).refreshChat(widget.chatId);
     _scrollToBottom();
@@ -95,6 +94,28 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Échec de l\'envoi : $e'), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  Future<void> _pickAttachment() async {
+    final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'doc', 'docx', 'txt', 'csv']);
+    final file = picked?.files.single;
+    final path = file?.path;
+    if (file == null || path == null || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final uploaded = await ref.read(remotePatientRepositoryProvider).uploadChatAttachment(path);
+      final url = uploaded['url']?.toString();
+      if (url == null || url.isEmpty) throw Exception('Le fichier n’a pas pu être téléversé.');
+      final ext = file.extension?.toLowerCase() ?? '';
+      final mime = const {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','webp':'image/webp','gif':'image/gif','pdf':'application/pdf','doc':'application/msword','docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','txt':'text/plain','csv':'text/csv'}[ext] ?? 'application/octet-stream';
+      await ref.read(patientProvider.notifier).sendChatMessage(widget.chatId, '', fileUrl: url, fileName: file.name, fileSize: file.size, mimeType: mime);
+      await ref.read(patientProvider.notifier).refreshChat(widget.chatId);
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Échec de l’envoi du fichier : $e')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -171,8 +192,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     ...messages.map((msg) => _MessageBubble(
-                      text: msg.text,
-                      isMe: msg.senderId == currentUserId,
+                      message: msg,
+                      isMe: msg.senderId == currentUserId || msg.senderRole == 'patient',
                       time: _formatTime(msg.timestamp),
                     )),
                     if (_isTyping)
@@ -213,7 +234,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               top: false,
               child: Row(
                 children: [
-                  IconButton(icon: const Icon(LucideIcons.paperclip, size: 20), color: AppColors.mutedForeground, onPressed: () {}),
+                  IconButton(icon: const Icon(LucideIcons.paperclip, size: 20), color: AppColors.mutedForeground, onPressed: _sending ? null : _pickAttachment),
                   Expanded(
                     child: TextField(
                       controller: _inputController,
@@ -306,11 +327,11 @@ class _BouncingDotState extends State<_BouncingDot> with SingleTickerProviderSta
 }
 
 class _MessageBubble extends StatelessWidget {
-  final String text;
+  final ChatMessage message;
   final bool isMe;
   final String time;
 
-  const _MessageBubble({required this.text, required this.isMe, required this.time});
+  const _MessageBubble({required this.message, required this.isMe, required this.time});
 
   @override
   Widget build(BuildContext context) {
@@ -345,10 +366,10 @@ class _MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    text,
-                    style: TextStyle(fontSize: 14, color: isMe ? AppColors.white : AppColors.foreground),
-                  ),
+                  if (message.metadata?.attachmentUrl?.isNotEmpty == true)
+                    _AttachmentPreview(path: message.metadata!.attachmentUrl!, name: message.metadata?.fileName ?? 'Pièce jointe', image: message.type == 'image', isMe: isMe)
+                  else if (message.text.isNotEmpty)
+                    Text(message.text, style: TextStyle(fontSize: 14, color: isMe ? AppColors.white : AppColors.foreground)),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -369,4 +390,33 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AttachmentPreview extends StatelessWidget {
+  final String path;
+  final String name;
+  final bool image;
+  final bool isMe;
+  const _AttachmentPreview({required this.path, required this.name, required this.image, required this.isMe});
+
+  Uri get uri {
+    final base = Uri.parse(ApiEndpoints.baseUrl);
+    return path.startsWith('http') ? Uri.parse(path) : base.resolve('/${path.replaceFirst(RegExp(r'^/'), '')}');
+  }
+
+  @override
+  Widget build(BuildContext context) => image
+      ? GestureDetector(onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication), child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(uri.toString(), width: 220, height: 160, fit: BoxFit.cover, errorBuilder: (_, _, _) => _document(context))))
+      : _document(context);
+
+  Widget _document(BuildContext context) => InkWell(
+    onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(LucideIcons.fileText, color: isMe ? AppColors.white : AppColors.primary),
+      const SizedBox(width: 8),
+      Flexible(child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: isMe ? AppColors.white : AppColors.foreground, decoration: TextDecoration.underline))),
+      const SizedBox(width: 4),
+      Icon(LucideIcons.download, size: 16, color: isMe ? Colors.white70 : AppColors.mutedForeground),
+    ]),
+  );
 }

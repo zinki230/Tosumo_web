@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/utils/localization.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../features/patient/providers/patient_provider.dart';
 import '../../../shared/models/doctor_profile.dart';
 import '../../../shared/widgets/app_animated_mount.dart';
 import '../../../shared/widgets/app_back_button.dart';
@@ -180,14 +181,36 @@ class DoctorProfileScreen extends ConsumerWidget {
         ),
         child: SafeArea(
           top: false,
-          child: SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton.icon(
-              onPressed: () => context.push('/patient/booking', extra: doctor),
-              icon: const Icon(LucideIcons.calendarPlus, size: 18),
-              label: Text(t?.t('doctorProfile.bookAppointment') ?? ''),
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final chat = await ref.read(patientProvider.notifier).startChatWithDoctor(doctor.id);
+                      if (context.mounted) context.push('/patient/chat/${chat.id}');
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible d’ouvrir la messagerie : $e')));
+                      }
+                    }
+                  },
+                  icon: const Icon(LucideIcons.messageCircle, size: 18),
+                  label: const Text('Message'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: () => context.push('/patient/booking', extra: doctor),
+                    icon: const Icon(LucideIcons.calendarPlus, size: 18),
+                    label: Text(t?.t('doctorProfile.bookAppointment') ?? ''),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

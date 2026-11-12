@@ -21,6 +21,7 @@ abstract class PatientRepository {
   Future<List<HospitalInfo>> getHospitals();
   Future<List<ChatConversation>> getChats(String patientId);
   Future<ChatConversation?> getChatById(String chatId);
+  Future<ChatConversation> getOrCreateChatWithDoctor(String doctorId);
   Future<List<NotificationModel>> getNotifications(String patientId);
   Future<List<NotificationModel>> getUnreadNotifications(String patientId);
   Future<AccessGrant> approveAccessRequest(String grantId);
@@ -47,12 +48,19 @@ abstract class PatientRepository {
   });
   Future<List<Map<String, dynamic>>> getAppointments(String patientId);
   Future<List<Map<String, dynamic>>> getPatientMedicalRecords(String patientId);
-  Future<List<Map<String, dynamic>>> getAvailableSlots(String doctorId, String date);
+  Future<List<Map<String, dynamic>>> getAvailableSlots(
+    String doctorId,
+    String date,
+  );
   Future<List<Map<String, dynamic>>> getPrescriptions(String patientId);
   Future<Map<String, dynamic>> sendMessage({
     required String chatId,
     required String content,
     String? messageType,
+    String? fileUrl,
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
   });
   Future<void> markChatAsRead(String chatId);
   Future<void> updatePatient(Map<String, dynamic> data);
@@ -71,7 +79,8 @@ abstract class PatientRepository {
   });
 
   Future<void> cancelAppointment(String appointmentId, {String? reason});
-  Future<void> rescheduleAppointment(String appointmentId, {
+  Future<void> rescheduleAppointment(
+    String appointmentId, {
     required String date,
     required String startTime,
     required String endTime,
@@ -80,5 +89,9 @@ abstract class PatientRepository {
   Future<void> confirmAppointment(String appointmentId);
   Future<String?> uploadAvatar(String filePath, {String? patientId});
   Future<bool> sendOtp({required String phone, String? email});
-  Future<bool> verifyOtp({required String phone, required String otp, String? email});
+  Future<bool> verifyOtp({
+    required String phone,
+    required String otp,
+    String? email,
+  });
 }

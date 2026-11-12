@@ -260,7 +260,12 @@ class DoctorResponseMapper {
       'senderRole': senderRole,
       'text': json['content'] as String? ?? json['text'] as String? ?? '',
       'type': json['messageType'] as String? ?? 'text',
-      'metadata': json['metadata'] as Map<String, dynamic>?,
+      'metadata': json['metadata'] as Map<String, dynamic>? ?? (json['fileUrl'] == null ? null : <String, dynamic>{
+        'attachmentUrl': json['fileUrl'],
+        'fileName': json['fileName'],
+        'fileSize': json['fileSize'],
+        'mimeType': json['mimeType'],
+      }),
       'status': json['isRead'] == true ? 'read' : 'delivered',
       'timestamp': json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
     };

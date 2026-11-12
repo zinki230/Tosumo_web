@@ -553,8 +553,8 @@ class RemoteDoctorRepository
         data: formData,
       );
       final data = response.data as Map<String, dynamic>;
-      final inner = data['data'] as Map<String, dynamic>?;
-      return inner?['url'] as String?;
+      return (data['url'] ?? (data['data'] as Map<String, dynamic>?)?['url'])
+          as String?;
     } catch (_) {
       return null;
     }
@@ -881,7 +881,15 @@ class RemoteDoctorRepository
   }) async {
     final response = await _client.dio.post(
       DoctorApiEndpoints.chatMessages(conversationId),
-      data: {'content': text, 'messageType': type ?? 'text'},
+      data: {
+        'content': text,
+        'messageType': type ?? 'text',
+        if (metadata?['attachmentUrl'] != null)
+          'fileUrl': metadata!['attachmentUrl'],
+        if (metadata?['fileName'] != null) 'fileName': metadata!['fileName'],
+        if (metadata?['fileSize'] != null) 'fileSize': metadata!['fileSize'],
+        if (metadata?['mimeType'] != null) 'mimeType': metadata!['mimeType'],
+      },
     );
     return ChatMessage.fromJson(
       DoctorResponseMapper.messageFromBackend(

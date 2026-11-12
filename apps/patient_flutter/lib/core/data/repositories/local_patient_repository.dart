@@ -77,6 +77,11 @@ class LocalPatientRepository implements PatientRepository {
   }
 
   @override
+  Future<ChatConversation> getOrCreateChatWithDoctor(String doctorId) async {
+    throw UnsupportedError('La messagerie nécessite une connexion.');
+  }
+
+  @override
   Future<List<NotificationModel>> getNotifications(String patientId) async {
     return _db.getAll('medicard_notifications', NotificationModel.fromJson);
   }
@@ -239,6 +244,10 @@ class LocalPatientRepository implements PatientRepository {
     required String chatId,
     required String content,
     String? messageType,
+    String? fileUrl,
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
   }) async {
     final msg = <String, dynamic>{
       'id': 'msg-${DateTime.now().millisecondsSinceEpoch}',
@@ -248,6 +257,10 @@ class LocalPatientRepository implements PatientRepository {
       'senderRole': 'patient',
       'createdAt': DateTime.now().toIso8601String(),
       'isRead': false,
+      if (fileUrl != null) 'fileUrl': fileUrl,
+      if (fileName != null) 'fileName': fileName,
+      if (fileSize != null) 'fileSize': fileSize,
+      if (mimeType != null) 'mimeType': mimeType,
     };
     return msg;
   }

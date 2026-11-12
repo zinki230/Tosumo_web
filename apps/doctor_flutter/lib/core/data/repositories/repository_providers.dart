@@ -20,6 +20,7 @@ import '../../../domain/repositories/settings_repository.dart';
 import 'local_doctor_repository.dart';
 import 'remote_doctor_repository.dart';
 import 'doctor_coordinator.dart';
+import '../../services/socket_service.dart';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
@@ -33,6 +34,12 @@ final tokenStorageServiceProvider = Provider<TokenStorageService>((ref) {
 final apiClientProvider = Provider<ApiClient>((ref) {
   final tokenStorage = ref.watch(tokenStorageServiceProvider);
   return ApiClient(tokenStorage: tokenStorage);
+});
+
+final socketServiceProvider = Provider<SocketService>((ref) {
+  final service = SocketService(ref.watch(tokenStorageServiceProvider));
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 final syncQueueProvider = Provider<SyncQueue>((ref) => SyncQueue());

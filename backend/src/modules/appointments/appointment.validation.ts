@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+const appTimeZone = process.env.APP_TIME_ZONE || 'Africa/Douala';
+const isFutureCalendarDate = (date: Date) => {
+  const key = (value: Date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: appTimeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(value);
+  return date.toISOString().slice(0, 10) >= key(new Date());
+};
 
 export const bookAppointmentSchema = z.object({
   doctorId: z.string().min(1, 'Doctor is required'),
@@ -13,8 +21,8 @@ export const bookAppointmentSchema = z.object({
 }).refine(d => d.startTime < d.endTime, {
   message: 'Start time must be before end time',
   path: ['endTime'],
-}).refine(d => d.appointmentDate.getTime() > Date.now(), {
-  message: 'Appointment date must be in the future',
+}).refine(d => isFutureCalendarDate(d.appointmentDate), {
+  message: 'Appointment date must be today or in the future',
   path: ['appointmentDate'],
 });
 
@@ -30,7 +38,7 @@ export const rescheduleAppointmentSchema = z.object({
 }).refine(d => d.startTime < d.endTime, {
   message: 'Start time must be before end time',
   path: ['endTime'],
-}).refine(d => d.appointmentDate.getTime() > Date.now(), {
-  message: 'Appointment date must be in the future',
+}).refine(d => isFutureCalendarDate(d.appointmentDate), {
+  message: 'Appointment date must be today or in the future',
   path: ['appointmentDate'],
 });

@@ -125,6 +125,12 @@ class RemotePatientRepository implements PatientRepository {
   }
 
   @override
+  Future<ChatConversation> getOrCreateChatWithDoctor(String doctorId) async {
+    final response = await _client.post('${ApiEndpoints.chat}/with/$doctorId');
+    return ResponseMapper.conversationFromBackend(_unwrap(response.data));
+  }
+
+  @override
   Future<List<NotificationModel>> getNotifications(String patientId) async {
     final response = await _client.get(ApiEndpoints.notifications);
     return _unwrapList(response.data).map((e) => ResponseMapper.notificationFromBackend(e)).toList();
@@ -233,6 +239,7 @@ class RemotePatientRepository implements PatientRepository {
   /// Fetches the patient's own medical records aggregate (consultations, labs,
   /// imaging, prescriptions). Used to surface doctor-created consultations in
   /// the patient's medical booklet.
+  @override
   Future<List<Map<String, dynamic>>> getPatientMedicalRecords(String patientId) async {
     final response = await _client.get(ApiEndpoints.patientMedicalRecords);
     final data = _unwrap(response.data);
@@ -247,10 +254,18 @@ class RemotePatientRepository implements PatientRepository {
     required String chatId,
     required String content,
     String? messageType,
+    String? fileUrl,
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
   }) async {
     final response = await _client.post(ApiEndpoints.chatMessages(chatId), data: {
       'content': content,
       'messageType': messageType ?? 'text',
+      'fileUrl': ?fileUrl,
+      'fileName': ?fileName,
+      'fileSize': ?fileSize,
+      'mimeType': ?mimeType,
     });
     return _unwrap(response.data);
   }
@@ -356,6 +371,12 @@ class RemotePatientRepository implements PatientRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<Map<String, dynamic>> uploadChatAttachment(String filePath) async {
+    final formData = FormData.fromMap({'file': await MultipartFile.fromFile(filePath)});
+    final response = await _client.post(ApiEndpoints.upload, data: formData);
+    return _unwrap(response.data);
   }
 
   /// Fetches a single consultation (includes orderedExams).

@@ -27,6 +27,7 @@ sealed class ChatMessage with _$ChatMessage {
     required String id,
     required String senderId,
     required String senderName,
+    @Default('patient') String senderRole,
     required String text,
     required String timestamp,
     @Default('text') String type,

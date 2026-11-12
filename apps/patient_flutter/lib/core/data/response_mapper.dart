@@ -326,13 +326,14 @@ class ResponseMapper {
       if (json['fileUrl'] != null || json['mimeType'] != null) {
         final mm = MessageMetadata(
           attachmentUrl: valStr(json['fileUrl']),
-          fileName: valStr(json['mimeType']),
+          fileName: valStr(json['fileName']),
           fileSize: valStr(json['fileSize']),
         );
         return ChatMessage(
           id: valStr(json['id']) ?? '',
           senderId: valStr(json['senderId']) ?? '',
           senderName: senderName,
+          senderRole: senderRole,
           text: valStr(json['content']) ?? valStr(json['text']) ?? '',
           timestamp: valStr(json['createdAt']) ?? DateTime.now().toIso8601String(),
           type: valStr(json['messageType']) ?? 'text',
@@ -346,7 +347,7 @@ class ResponseMapper {
       mappedMetadata = MessageMetadata(
         attachmentUrl: valStr(metadata['attachmentUrl']) ?? valStr(json['fileUrl']),
         duration: valStr(metadata['duration']),
-        fileName: valStr(metadata['fileName']),
+        fileName: valStr(metadata['fileName']) ?? valStr(json['fileName']),
         fileSize: valStr(metadata['fileSize']) ?? valStr(json['fileSize']),
         prescriptionName: valStr(metadata['prescriptionName']),
         labType: valStr(metadata['labType']),
@@ -357,6 +358,7 @@ class ResponseMapper {
       id: _safeStr(json['id']),
       senderId: _safeStr(json['senderId']),
       senderName: senderName,
+      senderRole: senderRole,
       text: _nullStr(json['content']) ?? _nullStr(json['text']) ?? '',
       timestamp: _nullStr(json['createdAt']) ?? DateTime.now().toIso8601String(),
       type: _nullStr(json['messageType']) ?? 'text',
