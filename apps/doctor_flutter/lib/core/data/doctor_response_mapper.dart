@@ -11,11 +11,14 @@ class DoctorResponseMapper {
       primaryInstitution = first['institution'] as Map<String, dynamic>?;
     }
 
-    final workingHoursRaw = json['workingHours'] as List<dynamic>?;
+    // The weekly schedule is DoctorAvailability. `workingHours` only contains
+    // date-specific exceptions and cannot restore the doctor's weekly editor.
+    final workingHoursRaw = json['availability'] as List<dynamic>? ??
+        json['workingHours'] as List<dynamic>?;
     final mappedWorkHours = workingHoursRaw?.map((wh) {
       final whMap = wh as Map<String, dynamic>;
       return <String, dynamic>{
-        'dayOfWeek': whMap['dayOfWeek'] ?? whMap['dayOfWeek'] ?? 0,
+        'dayOfWeek': whMap['dayOfWeek'] ?? 0,
         'startTime': whMap['startTime'] as String? ?? '08:00',
         'endTime': whMap['endTime'] as String? ?? '17:00',
         'isAvailable': whMap['isAvailable'] as bool? ?? true,
