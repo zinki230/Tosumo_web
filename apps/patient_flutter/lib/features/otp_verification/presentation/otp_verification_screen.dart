@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,6 +123,46 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       _code.length == _digitCount &&
       _code.characters.every((c) => c.isNotEmpty);
 
+  String _sendOtpErrorMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      final body = data is Map ? data : const <String, dynamic>{};
+      final code = body['code']?.toString();
+      final statusCode = error.response?.statusCode;
+      if (code == 'EMAIL_ALREADY_REGISTERED') {
+        return 'Cette adresse e-mail est déjà utilisée.';
+      }
+      if (code == 'EMAIL_DELIVERY_FAILED') {
+        return 'Le serveur ne parvient pas à envoyer le code e-mail. Réessayez plus tard ou choisissez la vérification par SMS.';
+      }
+      if (statusCode != null) {
+        final message = (body['message'] ?? body['error'])?.toString();
+        if (statusCode == 429) {
+          return message ?? 'Trop de demandes. Attendez avant de réessayer.';
+        }
+        if (statusCode >= 500) {
+          return 'Le serveur a rencontré une erreur lors de l’envoi du code ($statusCode). Réessayez plus tard.';
+        }
+        if (message != null &&
+            message.isNotEmpty &&
+            message != 'Validation failed') {
+          return message;
+        }
+        if (statusCode == 400) {
+          return 'Vérifiez l’adresse e-mail saisie puis réessayez.';
+        }
+        return 'La demande a été refusée par le serveur (erreur $statusCode).';
+      }
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return 'Impossible de joindre le serveur. Vérifiez votre accès internet puis réessayez.';
+      }
+    }
+    return 'Impossible d’envoyer le code. Réessayez ou choisissez la vérification par SMS.';
+  }
+
   Future<bool> _sendOtp() async {
     if (_channel == null) return false;
     try {
@@ -152,19 +193,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       return true;
     } catch (e) {
       if (mounted) {
-        final t = ref
-            .read(localizationProvider(ref.read(localeProvider)))
-            .asData
-            ?.value;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().contains('EMAIL_ALREADY_REGISTERED')
-                  ? 'Cette adresse e-mail est déjà utilisée.'
-                  : (t?.t('otp.sendFailed') ?? 'Échec de l’envoi du code.'),
-            ),
-          ),
-        );
+        final message = _sendOtpErrorMessage(e);
+        setState(() => _sendError = message);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
       return false;
     }

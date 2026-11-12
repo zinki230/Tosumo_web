@@ -2,7 +2,7 @@ import { AuthRepository } from './auth.repository';
 import { hashPassword, verifyPassword } from '@shared/utils/password';
 import { generateTokenPair, verifyRefreshToken } from '@shared/utils/jwt';
 import { JwtPayload } from '@shared/types';
-import { BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
+import { AppError, BadRequestError, ConflictError, UnauthorizedError } from '@shared/utils/errors';
 import { sendEmailOtp, sendVerificationEmail } from '@shared/services/email';
 import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInput } from './auth.validation';
 import { OtpProvider, createOtpProvider, generateOtp } from './otp.provider';
@@ -317,7 +317,12 @@ export class AuthService {
       update: { otpHash: hash, createdAt: now, expiresAt: new Date(now.getTime()+300_000), attempts: 0, verifiedAt: null },
     });
     try { await sendEmailOtp(normalized, code); }
-    catch { await prisma.phoneOtp.updateMany({ where: { phone: key, operation: 'email_verification', createdAt: now }, data: { verifiedAt: now, expiresAt: new Date(now.getTime() - 1) } }); throw new BadRequestError('Impossible d’envoyer le code email.'); }
+    catch {
+      await prisma.phoneOtp.updateMany({ where: { phone: key, operation: 'email_verification', createdAt: now }, data: { verifiedAt: now, expiresAt: new Date(now.getTime() - 1) } });
+      const err = new AppError('Le service email n’a pas pu envoyer le code. Vérifiez la configuration d’envoi ou réessayez plus tard.', 502);
+      err.code = 'EMAIL_DELIVERY_FAILED';
+      throw err;
+    }
     return { message: 'Code envoyé par email', expiresIn: 300, resendAfter: 60, mode: 'email' };
   }
 
