@@ -6,6 +6,7 @@ import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/splash/presentation/welcome_screen.dart';
 import '../../features/auth/presentation/signin_screen.dart';
 import '../../features/registration/presentation/registration_screen.dart';
+import '../../features/registration/providers/registration_provider.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/institution_home/presentation/institution_home_screen.dart';
 import '../../features/otp_verification/presentation/otp_verification_screen.dart';
@@ -86,10 +87,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         // patient record is still a stub (no DOB/gender/city). The two onboarding
         // screens are whitelisted so they are not bounced away mid-flow.
         final needsOnboarding = ref.read(authProvider).needsOnboarding;
+        final registrationStep = ref.read(registrationProvider).step;
+        final registrationInProgress =
+            registrationStep != RegistrationStep.registration &&
+            registrationStep != RegistrationStep.enrollmentComplete;
         if (needsOnboarding &&
+            !registrationInProgress &&
             loc != '/otp' &&
             loc != '/onboarding/identity-generation' &&
-            loc != '/onboarding/personal-info' &&
             loc != '/onboarding/complete-profile') {
           return '/onboarding/complete-profile';
         }

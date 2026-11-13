@@ -9,6 +9,7 @@ import '../../../core/network/socket_provider.dart';
 import '../../../core/network/sync_engine.dart';
 import '../../../shared/models/patient.dart';
 import '../../patient/providers/patient_provider.dart';
+import '../../registration/providers/registration_provider.dart';
 
 enum AuthStatus { initial, authenticated, unauthenticated, loading, refreshing, error }
 
@@ -380,6 +381,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> logout() async {
     _onboardingCompleted = false;
+    ref.read(registrationProvider.notifier).reset();
     try {
       ref.read(socketServiceProvider).disconnect();
     } catch (_) {}

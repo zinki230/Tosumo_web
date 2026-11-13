@@ -170,6 +170,7 @@ class _IdentityGenerationScreenState extends ConsumerState<IdentityGenerationScr
         throw Exception('Délai d\'attente dépassé lors du chargement du profil.');
       });
       ref.read(authProvider.notifier).markOnboarded();
+      ref.read(registrationProvider.notifier).setStep(RegistrationStep.enrollmentComplete);
     } catch (e) {
       // ignore: avoid_print
       print('[PATIENT] load after onboard failed: $e');
