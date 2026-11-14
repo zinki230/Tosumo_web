@@ -109,6 +109,9 @@ class AuthService {
       'role': role,
       'firstName': ?firstName,
       'lastName': ?lastName,
+      'dateOfBirth': ?dateOfBirth,
+      'gender': ?gender,
+      'city': ?city,
     });
     if (kDebugMode) print('[REGISTER] Backend registration successful');
     return await _buildAuthResult(response.data);

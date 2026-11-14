@@ -20,6 +20,9 @@ export const registerSchema = z.object({
   role: z.enum(['patient', 'doctor', 'institution_admin']),
   firstName: z.string().min(1, 'First name is required').optional(),
   lastName: z.string().min(1, 'Last name is required').optional(),
+  dateOfBirth: z.string().datetime().optional(),
+  gender: z.string().min(1).optional(),
+  city: z.string().min(1).optional(),
 });
 
 export const loginSchema = z.object({

@@ -160,7 +160,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final patientState = ref.watch(patientProvider);
     final currentUserId = ref.watch(authProvider).patient?.id ?? '';
     final chat = _findChat(patientState.chats);
-    final messages = chat?.messages ?? [];
+    // The doctor app orders messages from oldest to newest before rendering.
+    // API/socket/cache responses can arrive in different orders, so normalize
+    // here to keep the same chronology in the patient app.
+    final messages = List<ChatMessage>.of(chat?.messages ?? [])
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final name = chat?.participantName ?? '';
 
     return Scaffold(

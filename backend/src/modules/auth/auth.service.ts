@@ -8,6 +8,7 @@ import { RegisterInput, LoginInput, RegisterDoctorInput, RegisterInstitutionInpu
 import { OtpProvider, createOtpProvider, generateOtp } from './otp.provider';
 import { normalizeCameroonPhone } from '@shared/utils/phone';
 import prisma from '@shared/database/prisma';
+import { generateCardNumber } from '@shared/utils/helpers';
 
 function placeholderEmailForPhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
@@ -85,6 +86,29 @@ export class AuthService {
               lastName,
               specialty: 'General Practice',
               licenseNumber: tempLicenseNumber,
+            },
+          });
+        } else if (
+          input.role === 'patient' && input.firstName?.trim() && input.lastName?.trim() &&
+          input.dateOfBirth && input.gender?.trim() && input.city?.trim()
+        ) {
+          const patient = await tx.patient.create({
+            data: {
+              userId: createdUser.id,
+              firstName: input.firstName.trim(),
+              lastName: input.lastName.trim(),
+              dateOfBirth: new Date(input.dateOfBirth),
+              gender: input.gender.trim(),
+              city: input.city.trim(),
+              isOnboarded: true,
+              onboardingStep: 5,
+            },
+          });
+          await tx.medicalCard.create({
+            data: {
+              patientId: patient.id,
+              cardNumber: generateCardNumber(),
+              deletedAt: null,
             },
           });
         }
