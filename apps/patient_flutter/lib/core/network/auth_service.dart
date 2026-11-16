@@ -109,7 +109,9 @@ class AuthService {
       'role': role,
       'firstName': ?firstName,
       'lastName': ?lastName,
-      'dateOfBirth': ?dateOfBirth,
+      // Send a calendar date. Converting local midnight to UTC can shift a
+      // patient's birthday to the previous day in UTC+ zones.
+      'dateOfBirth': ?dateOfBirth?.split('T').first,
       'gender': ?gender,
       'city': ?city,
     });
