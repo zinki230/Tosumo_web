@@ -1080,7 +1080,7 @@ class RemoteDoctorRepository
   Future<void> updateWorkingHours(List<WorkingHour> hours) async {
     await _client.dio.put(
       DoctorApiEndpoints.doctorAvailability,
-      data: hours
+      data: {'slots': hours
           .map(
             (h) => {
               'dayOfWeek': h.dayOfWeek,
@@ -1090,7 +1090,7 @@ class RemoteDoctorRepository
               'slotDuration': 30,
             },
           )
-          .toList(),
+          .toList()},
     );
   }
 

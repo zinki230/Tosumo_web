@@ -218,6 +218,14 @@ class DoctorResponseMapper {
     if (participants != null) {
       for (final p in participants) {
         final pMap = p as Map<String, dynamic>;
+        final patient = pMap['patient'] as Map<String, dynamic>?;
+        if (patient != null) {
+          final patientUser = patient['user'] as Map<String, dynamic>?;
+          participantName = _patientName(patient, patientUser);
+          participantRole = 'patient';
+          online = patientUser?['isOnline'] as bool? ?? false;
+          continue;
+        }
         final doctor = pMap['doctor'] as Map<String, dynamic>?;
         final doctorUser = doctor?['user'] as Map<String, dynamic>?;
         if (doctorUser != null) {
